@@ -58,13 +58,13 @@ export function NightOven() {
           </Canvas>
 
           {lab ? (
-            <div className="absolute inset-0 grid place-items-center overflow-auto bg-fg/60 p-4">
+            <div className="absolute inset-0 z-30 grid place-items-center overflow-auto bg-fg/60 p-4">
               <RobotShift onClose={() => setLab(false)} />
             </div>
           ) : null}
 
           {ui.phase === "menu" && !booted && !lab ? (
-            <div className="absolute inset-0 grid place-items-center bg-fg/50 p-4">
+            <div className="absolute inset-0 z-30 grid place-items-center bg-fg/50 p-4">
               <div className="max-w-md rounded-xl bg-elevated p-6 text-center shadow-sheet">
                 <p className="text-xs uppercase tracking-widest text-muted">TRACELAW café</p>
                 <h1 className="mt-1 font-display text-3xl">Bake the 2048</h1>
@@ -116,7 +116,7 @@ export function NightOven() {
           ) : null}
 
           {ui.phase === "over" && !lab ? (
-            <div className="absolute inset-0 grid place-items-center bg-fg/50 p-4">
+            <div className="absolute inset-0 z-30 grid place-items-center bg-fg/50 p-4">
               <div className="max-w-md rounded-xl bg-elevated p-6 shadow-sheet">
                 <p className="text-xs uppercase tracking-widest text-muted">Night over</p>
                 <h2 className="font-display text-3xl">${ui.cash}</h2>
