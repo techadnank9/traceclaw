@@ -192,7 +192,7 @@ function Robot({
       {glb ? <G1Body url={url} motion={motion} drive={who === "jules"} /> : <RobotBody accent={accent} intern={who === "jules"} />}
       <HandMuffin pick={pick} />
       {label ? (
-        <Html center position={[0, 1.7, 0]}>
+        <Html center position={[0, 1.7, 0]} zIndexRange={[5, 0]}>
           <span className="rounded-sm bg-fg/80 px-1.5 text-[10px] text-paper">{label}</span>
         </Html>
       ) : null}
