@@ -157,6 +157,9 @@ export default defineConfig(({ command, isPreview }) => ({
     strictPort: true,
   },
   resolve: { tsconfigPaths: true },
+  // weave's ESM build calls require() internally; let Node load it as-is.
+  ssr: { external: ["weave"] },
+  optimizeDeps: { exclude: ["weave"] },
   plugins: [
     pgliteBootstrapPlugin(),
     // Before tanstackStart so /auth/popup never falls through to the SPA.

@@ -9,6 +9,7 @@ import {
   stickyEval,
 } from "@/lib/tracelaw/engine";
 import type { EvalReport, Law } from "@/lib/tracelaw/types";
+import { camera } from "@/lib/tracelaw/camera";
 
 export const W = 960;
 export const H = 540;
@@ -176,6 +177,7 @@ function loadOven(g: Game, from: Hold) {
 function finishOven(g: Game) {
   const kind = g.oven.jam ? "jam" : "clean";
   const result = serveTicket(kind, g.laws);
+  camera("oven", { ticket: kind, books: g.oven.books, batch: 2048, passed: result.passed, why: result.why, laws: g.laws.map((l) => `${l.kind}:${l.status}`) });
   if (result.passed) {
     g.oven.has = "cooked";
     g.oven.books = 1;
@@ -227,6 +229,7 @@ export function interact(g: Game) {
     if (!g.laws.some((l) => l.kind === "cut_batch")) {
       const { law } = proposeLaw("cut_batch", fail, gold, g.laws);
       g.laws = [...g.laws, law];
+      camera("court", { kind: law.kind, status: law.status, reason: law.reason, predicate: law.predicate });
       p.hold = "empty";
       g.hint = "Sticky thrown out. Space again to file the camera rule.";
       pop(g, "Thrown out");
@@ -234,6 +237,7 @@ export function interact(g: Game) {
     }
     const { law } = proposeLaw("free_ckpt", fail, gold, g.laws);
     g.laws = repealIfHitsGold([...g.laws.filter((l) => l.id !== law.id), law], gold);
+    camera("court", { kind: law.kind, status: law.status, reason: law.reason, predicate: law.predicate });
     g.phase = "play";
     g.oven.has = "empty";
     g.hint = "Filed: put extra book back. Next jam will live.";
@@ -276,6 +280,7 @@ export function fileStickyAnyway(g: Game) {
   g.laws = [...g.laws.filter((l) => l.kind !== "cut_batch"), law];
   g.phase = "play";
   g.goldHit = true;
+  camera("court", { kind: law.kind, status: law.status, reason: "filed sticky anyway", predicate: law.predicate, goldHit: true });
   g.oven.has = "empty";
   g.hint = "You filed the sticky. Every 2048 batch will die.";
   pop(g, "Gold ruined");
@@ -294,6 +299,7 @@ export function tick(g: Game, dt: number) {
       const gold = archiveTrace();
       g.evals = [stickyEval(gold), evaluate("night binder", g.laws, gold)];
       g.hint = "Night over.";
+      camera("night_over", { cash: g.cash, served: g.served, walked: g.walked, evals: g.evals.map((e) => `${e.label} ${e.passed}/${e.total}`), laws: g.laws.map((l) => `${l.kind}:${l.status}`) });
       return;
     }
     if (g.customers.filter((c) => c.alive).length < 3 && Math.random() < dt * 0.35) spawnCustomer(g);
