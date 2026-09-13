@@ -92,6 +92,10 @@ npm install
 npm run dev
 ```
 
+## Robots
+
+The three café robots are the **Unitree G1** from MuJoCo Menagerie, posed at the `stand` keyframe with MuJoCo forward kinematics and baked to glTF by `scripts/g1/export_g1.py` (0.7 MB each, PBR tints). They load with `http://localhost:8080/?g1=1`; the default is the lit placeholder body until the embedded-WebGL path is verified. The same G1 is what [robot-gym](https://github.com/techadnank9/robot-gym) races in MuJoCo.
+
 ## Binder
 
 Field predicates on span attributes (`batch`, `param_copies`), not string search.
