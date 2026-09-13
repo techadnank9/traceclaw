@@ -74,6 +74,7 @@ function Oven({ game }: { game: { current: Game } }) {
   const door = useRef<MeshStandardMaterial>(null);
   const light = useRef<PointLight>(null);
   const fail = useRef<Group>(null);
+  const [deadState, setDeadState] = useState(false);
   const muffin = useRef<Group>(null);
   useFrame(() => {
     const o = game.current.oven;
@@ -86,7 +87,7 @@ function Oven({ game }: { game: { current: Game } }) {
       door.current.emissiveIntensity = hot ? 1.6 : 0;
     }
     if (light.current) light.current.intensity = hot ? 12 : dead ? 2 : 0.4;
-    if (fail.current) fail.current.visible = dead;
+    if (dead !== deadState) setDeadState(dead);
     if (muffin.current) muffin.current.visible = o.has === "raw" || o.has === "cooked" || o.has === "burnt";
   });
   const [x, , z] = toWorld(ST.oven.x, ST.oven.y);
@@ -104,11 +105,11 @@ function Oven({ game }: { game: { current: Game } }) {
       <group ref={muffin} position={[0, 1.4, 0]} visible={false}>
         <MuffinMesh kind="cooked" y={0} z={0} />
       </group>
-      <group ref={fail} visible={false}>
-        <Html center position={[0, 1.9, 0]}>
+      {deadState ? (
+        <Html center position={[0, 1.9, 0]} zIndexRange={[5, 0]}>
           <span className="rounded-full border-4 border-danger px-3 py-1 font-display text-xl text-danger">FAIL</span>
         </Html>
-      </group>
+      ) : null}
     </group>
   );
 }
