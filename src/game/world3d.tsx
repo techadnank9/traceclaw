@@ -105,7 +105,7 @@ function Oven({ game }: { game: { current: Game } }) {
         <MuffinMesh kind="cooked" y={0} z={0} />
       </group>
       <group ref={fail} visible={false}>
-        <Html center position={[0, 1.9, 0]}>
+        <Html center zIndexRange={[5, 0]} position={[0, 1.9, 0]}>
           <span className="rounded-full border-4 border-danger px-3 py-1 font-display text-xl text-danger">FAIL</span>
         </Html>
       </group>
@@ -143,7 +143,7 @@ function Station({
         <boxGeometry args={[1.15, h, 0.85]} />
         <meshStandardMaterial color={color} />
       </mesh>
-      <Html center position={[0, h + 0.28, 0]}>
+      <Html center zIndexRange={[5, 0]} position={[0, h + 0.28, 0]}>
         <span className="rounded-sm bg-fg/80 px-1.5 py-0.5 text-[10px] uppercase tracking-widest text-paper">{label}</span>
       </Html>
     </group>
@@ -164,6 +164,7 @@ function Robot({
   const ref = useRef<Group>(null);
   const last = useRef<{ x: number; z: number; amp: number }>({ x: 0, z: 0, amp: 0 });
   const motion = useRef(false);
+  const [g1Failed, setG1Failed] = useState(false);
   // Unitree G1 glTFs (scripts/g1/export_g1.py) are opt-in via ?g1=1 until the
   // embedded-WebGL path is proven; the lit placeholder bodies are the default.
   const url = wantG1() ? `/models/${who}.glb` : "";
@@ -189,10 +190,14 @@ function Robot({
   const label = who === "you" ? "You" : who === "jules" ? "Jules" : who === "cass" ? "Cass" : "";
   return (
     <group ref={ref}>
-      {glb ? <G1Body url={url} motion={motion} drive={who === "jules"} /> : <RobotBody accent={accent} intern={who === "jules"} />}
+      {glb && !g1Failed ? (
+        <G1Body url={url} motion={motion} drive={who === "jules"} onFail={() => setG1Failed(true)} />
+      ) : (
+        <RobotBody accent={accent} intern={who === "jules"} />
+      )}
       <HandMuffin pick={pick} />
       {label ? (
-        <Html center position={[0, 1.7, 0]}>
+        <Html center zIndexRange={[5, 0]} position={[0, 1.7, 0]}>
           <span className="rounded-sm bg-fg/80 px-1.5 text-[10px] text-paper">{label}</span>
         </Html>
       ) : null}
@@ -288,8 +293,11 @@ const g1Cache = new Map<string, Promise<Object3D>>();
 function loadG1(url: string): Promise<Object3D> {
   let p = g1Cache.get(url);
   if (!p) {
-    p = fetch(url)
-      .then((r) => r.arrayBuffer())
+    p = fetch(url, { cache: "no-store" })
+      .then((r) => {
+        if (!r.ok) throw new Error(`glb ${r.status}`);
+        return r.arrayBuffer();
+      })
       .then(
         (buf) =>
           new Promise<Object3D>((res, rej) => new GLTFLoader().parse(buf, "/models/", (g) => res(g.scene), rej)),
@@ -313,7 +321,7 @@ function aboutPivot(pivot: Vector3, q: Quaternion, prevPos: Vector3, prevQ: Quat
   return { p: prevPos.clone().sub(pivot).applyQuaternion(q).add(pivot), q: q.clone().multiply(prevQ) };
 }
 
-function G1Body({ url, motion, drive }: { url: string; motion: { current: boolean }; drive: boolean }) {
+function G1Body({ url, motion, drive, onFail }: { url: string; motion: { current: boolean }; drive: boolean; onFail: () => void }) {
   const [obj, setObj] = useState<Object3D | null>(null);
   const bodies = useRef<Map<number, Object3D[]>>(new Map());
   const phase = useRef(0);
@@ -369,11 +377,16 @@ function G1Body({ url, motion, drive }: { url: string; motion: { current: boolea
         setObj(clone);
       })
       .catch(() => {
-        if (live) setObj(null);
+        if (live) onFail();
       });
+    const timer = setTimeout(() => {
+      if (live && !obj) onFail();
+    }, 6000);
     return () => {
       live = false;
+      clearTimeout(timer);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url]);
   return obj ? <primitive object={obj} /> : null;
 }
