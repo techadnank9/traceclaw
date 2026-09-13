@@ -73,7 +73,6 @@ function Rig({ game }: { game: { current: Game } }) {
 function Oven({ game }: { game: { current: Game } }) {
   const door = useRef<MeshStandardMaterial>(null);
   const light = useRef<PointLight>(null);
-  const fail = useRef<Group>(null);
   const [deadState, setDeadState] = useState(false);
   const muffin = useRef<Group>(null);
   useFrame(() => {
