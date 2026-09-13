@@ -96,7 +96,7 @@ npm run dev
 
 The café robots are the **Unitree G1** from MuJoCo Menagerie, posed at the `stand` keyframe with MuJoCo forward kinematics and baked to glTF by `scripts/g1/export_g1.py` (0.7 MB each, PBR tints; the same G1 [robot-gym](https://github.com/techadnank9/robot-gym) races in MuJoCo). They are on by default; `?g1=0` restores the placeholder bodies. The glTF is loaded by a small cached `GLTFLoader` hook, not drei's Suspense `<Gltf>`, which remount-storms with several robots until WebGL loses its context.
 
-**MuJoCo, for real.** The notebook's `mujoco` cell loads the same menagerie G1 in MuJoCo 3.13 on the molab box: 36 dof, 29 position actuators, 3 s of physics under gravity at the `stand` keyframe in ~50 ms, pelvis holds at 0.79 m — a `weave.op`. The browser café replays the posed body; it does not run physics in the browser.
+**MuJoCo, for real.** The notebook's `mujoco` cell loads the same menagerie G1 in MuJoCo 3.13 on the molab box: 36 dof, 29 position actuators, 3 s of physics under gravity at the `stand` keyframe in ~50 ms, pelvis holds at 0.79 m — a `weave.op`. The browser café replays the posed body; **it does not run a MuJoCo environment.** A live MuJoCo-driven gait (kernel physics → body poses streamed into the glTF nodes) is on branch `mujoco-walk`, unfinished: the naive actuator targets make the robot fall.
 
 **Jules (G1) runs the orders.** Autopilot: take the ticket at the register → raw muffin from the tray → load the oven → serve → repeat. On every jam the ticket goes to the molab GPU; when the court binder allows `free_ckpt`, Jules walks to the oven and pulls the extra book. You still walk the floor and you file the laws — the binder is the human's job.
 
