@@ -396,7 +396,7 @@ export const useBinder = create<State>((set, get) => ({
   exportBinder: () => {
     const { laws, audit, evals, archive, night1, night2, cash, served } = get();
     const blob = new Blob(
-      [JSON.stringify({ camera: "fixture", team: "superheros", cash, served, laws, audit, evals, traces: { archive, night1, night2 } }, null, 2)],
+      [JSON.stringify({ camera: "fixture", team: "iamadnan", cash, served, laws, audit, evals, traces: { archive, night1, night2 } }, null, 2)],
       { type: "application/json" },
     );
     const url = URL.createObjectURL(blob);

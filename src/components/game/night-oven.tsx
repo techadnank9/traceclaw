@@ -11,11 +11,13 @@ import {
 } from "@/game/bakery";
 import { BakeryScene, Loop } from "@/game/world3d";
 import { cn } from "@/lib/utils";
+import { RobotShift } from "@/components/game/robot-shift";
 
 export function NightOven() {
   const gameRef = useRef<Game>(createGame());
   const [ui, setUi] = useState(snap(gameRef.current));
   const [booted, setBooted] = useState(false);
+  const [lab, setLab] = useState(false);
 
   useEffect(() => bindControls(gameRef.current), []);
 
@@ -53,7 +55,13 @@ export function NightOven() {
             <BakeryScene game={gameRef} />
           </Canvas>
 
-          {ui.phase === "menu" && !booted ? (
+          {lab ? (
+            <div className="absolute inset-0 grid place-items-center overflow-auto bg-fg/60 p-4">
+              <RobotShift onClose={() => setLab(false)} />
+            </div>
+          ) : null}
+
+          {ui.phase === "menu" && !booted && !lab ? (
             <div className="absolute inset-0 grid place-items-center bg-fg/50 p-4">
               <div className="max-w-md rounded-xl bg-elevated p-6 text-center shadow-sheet">
                 <p className="text-xs uppercase tracking-widest text-muted">TRACELAW café</p>
@@ -66,10 +74,8 @@ export function NightOven() {
                   <Button size="lg" onClick={play}>
                     Play
                   </Button>
-                  <Button size="lg" variant="secondary" asChild>
-                    <a href="https://molab.marimo.io/notebooks/nb_XpnzWXXyteA47H9NYunt5T" target="_blank" rel="noreferrer">
-                      GPU lab
-                    </a>
+                  <Button size="lg" variant="secondary" onClick={() => setLab(true)}>
+                    GPU robot
                   </Button>
                 </div>
               </div>
@@ -87,7 +93,7 @@ export function NightOven() {
             </div>
           ) : null}
 
-          {ui.phase === "over" ? (
+          {ui.phase === "over" && !lab ? (
             <div className="absolute inset-0 grid place-items-center bg-fg/50 p-4">
               <div className="max-w-md rounded-xl bg-elevated p-6 shadow-sheet">
                 <p className="text-xs uppercase tracking-widest text-muted">Night over</p>
@@ -105,13 +111,14 @@ export function NightOven() {
                     </div>
                   ))}
                 </div>
-                <Button
-                  size="lg"
-                  className="mt-5 w-full"
-                  onClick={play}
-                >
-                  Play
-                </Button>
+                <div className="mt-5 grid grid-cols-2 gap-2">
+                  <Button size="lg" onClick={play}>
+                    Play
+                  </Button>
+                  <Button size="lg" variant="secondary" onClick={() => setLab(true)}>
+                    GPU robot
+                  </Button>
+                </div>
               </div>
             </div>
           ) : null}

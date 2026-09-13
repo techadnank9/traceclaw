@@ -1,0 +1,68 @@
+{
+  "camera": "molab-gpu",
+  "device": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+  "model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "weave": "https://wandb.ai/iamadnan/tracelaw/weave",
+  "laws": [
+    "free_ckpt"
+  ],
+  "empty": [
+    {
+      "job_id": "archive",
+      "batch": 2048,
+      "param_copies": 1,
+      "robot": "free_ckpt",
+      "ms": 309,
+      "struck": true,
+      "alive": true
+    },
+    {
+      "job_id": "night1",
+      "batch": 2048,
+      "param_copies": 2,
+      "robot": "noop",
+      "ms": 103,
+      "struck": false,
+      "alive": false
+    },
+    {
+      "job_id": "night2",
+      "batch": 2048,
+      "param_copies": 2,
+      "robot": "noop",
+      "ms": 80,
+      "struck": false,
+      "alive": false
+    }
+  ],
+  "binder": [
+    {
+      "job_id": "archive",
+      "batch": 2048,
+      "param_copies": 1,
+      "robot": "free_ckpt",
+      "ms": 283,
+      "struck": false,
+      "alive": true
+    },
+    {
+      "job_id": "night1",
+      "batch": 2048,
+      "param_copies": 1,
+      "robot": "free_ckpt",
+      "ms": 288,
+      "struck": false,
+      "alive": true
+    },
+    {
+      "job_id": "night2",
+      "batch": 2048,
+      "param_copies": 1,
+      "robot": "free_ckpt",
+      "ms": 285,
+      "struck": false,
+      "alive": true
+    }
+  ]
+}
+

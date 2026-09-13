@@ -23,7 +23,7 @@ python3 -m court eval
 | Sponsor | What it does here | Where |
 | --- | --- | --- |
 | **W&B Weave** | Every loop step is a `weave.op`: `propose_law` → `veto_against_gold` → `serve_night`. Three nights = `weave.Dataset`. Three binders (`no-binder`, `sticky-forced`, `court-binder`) = `weave.Model`s scored by `weave.Evaluation` on *alive AND batch held at 2048*. Court binder 3/3, sticky punishes gold. | `court/weave_loop.py`, [Weave](https://wandb.ai/iamadnan/tracelaw/weave) |
-| **marimo molab** | RTX PRO 6000 notebook. Qwen2.5-0.5B on CUDA reads each ticket + binder and picks an action; court strikes anything not admitted; bake. GPU cell shows the "extra book" (duplicate tensor) freed. Cells were written by a coding agent via `marimo pair`. | [notebook](https://molab.marimo.io/notebooks/nb_XpnzWXXyteA47H9NYunt5T), `notebooks/night_oven.py` |
+| **marimo molab** | RTX PRO 6000 notebook. Qwen2.5-0.5B on CUDA reads each ticket + binder and picks an action; court strikes anything not admitted; bake. GPU cell shows the "extra book" (duplicate tensor) freed. Cells were written by a coding agent via `marimo pair`. Robot results exported to `fixtures/robot-shift.json` and shown in-game (**GPU robot** button). | [notebook](https://molab.marimo.io/notebooks/nb_XpnzWXXyteA47H9NYunt5T), `notebooks/night_oven.py` |
 | **ARIA / TypeSafe AI** | Not integrated. No time, no API in hand. Said plainly. | — |
 
 ## The loop, as judges will see it
