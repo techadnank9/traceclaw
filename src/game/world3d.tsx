@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows, Gltf, Html } from "@react-three/drei";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import type { Object3D } from "three";
+import { Matrix4, Quaternion, Vector3, type Object3D } from "three";
+import { gaitPose } from "@/lib/tracelaw/gait";
 import type { Group, MeshStandardMaterial, PointLight } from "three";
 import { CafeRoom } from "./cafe-room";
 import { H, W, ST, tick, type Game, type Hold } from "./bakery";
@@ -162,6 +163,7 @@ function Robot({
 }) {
   const ref = useRef<Group>(null);
   const last = useRef<{ x: number; z: number; amp: number }>({ x: 0, z: 0, amp: 0 });
+  const motion = useRef(false);
   // Unitree G1 glTFs (scripts/g1/export_g1.py) are opt-in via ?g1=1 until the
   // embedded-WebGL path is proven; the lit placeholder bodies are the default.
   const url = wantG1() ? `/models/${who}.glb` : "";
@@ -177,6 +179,7 @@ function Robot({
     const [x, , z] = toWorld(b.x, b.y);
     // No hop: the G1 glides. (Placeholder bodies bob a little while walking.)
     const moved = Math.hypot(x - last.current.x, z - last.current.z) > 0.002;
+    motion.current = moved;
     last.current.amp += ((moved && !glb ? 0.05 : 0) - last.current.amp) * 0.2;
     last.current.x = x;
     last.current.z = z;
@@ -186,7 +189,7 @@ function Robot({
   const label = who === "you" ? "You" : who === "jules" ? "Jules" : who === "cass" ? "Cass" : "";
   return (
     <group ref={ref}>
-      {glb ? <G1Body url={url} /> : <RobotBody accent={accent} intern={who === "jules"} />}
+      {glb ? <G1Body url={url} motion={motion} drive={who === "jules"} /> : <RobotBody accent={accent} intern={who === "jules"} />}
       <HandMuffin pick={pick} />
       {label ? (
         <Html center position={[0, 1.7, 0]}>
@@ -300,20 +303,91 @@ function loadG1(url: string): Promise<Object3D> {
  * Unitree G1 body without Suspense: drei's <Gltf> suspends the whole scene and,
  * with several robots, remount-storms until WebGL loses its context.
  */
-function G1Body({ url }: { url: string }) {
+// MuJoCo Z-up/+X-forward → glTF frame used by scripts/g1/export_g1.py.
+const MJ_TO_GL = new Matrix4().set(0, -1, 0, 0, 0, 0, 1, 0, -1, 0, 0, 0, 0, 0, 0, 1);
+const Q_MJ_TO_GL = new Quaternion().setFromRotationMatrix(MJ_TO_GL);
+
+function G1Body({ url, motion, drive }: { url: string; motion: { current: boolean }; drive: boolean }) {
   const [obj, setObj] = useState<Object3D | null>(null);
+  const bodies = useRef<Map<number, Object3D[]>>(new Map());
+  const target = useRef<Map<number, { p: Vector3; q: Quaternion }>>(new Map());
+  const rest = useRef<Map<number, { p: Vector3; q: Quaternion }>>(new Map());
+  const phase = useRef(0);
+
+  // Live MuJoCo: poll the kernel's g1_gait while this body is the driven one.
+  useEffect(() => {
+    if (!drive || !obj) return;
+    let live = true;
+    let busy = false;
+    const id = setInterval(async () => {
+      if (busy || !live) return;
+      busy = true;
+      try {
+        if (motion.current) phase.current += 0.9;
+        const pose = await gaitPose({ data: { phase: phase.current, moving: motion.current } });
+        if (!live || pose.camera !== "mujoco" || !pose.xpos || !pose.xquat) return;
+        // Vertices are baked in the rest (stand) world frame, so drive nodes by the
+        // delta from the rest pose: M = T_now · T_rest⁻¹.
+        if (rest.current.size === 0) {
+          for (let b = 0; b < pose.xpos.length; b++) {
+            const xp = pose.xpos[b];
+            const xq = pose.xquat[b];
+            rest.current.set(b, {
+              p: new Vector3(xp[0], xp[1], xp[2]).applyMatrix4(MJ_TO_GL),
+              q: Q_MJ_TO_GL.clone().multiply(new Quaternion(xq[1], xq[2], xq[3], xq[0])),
+            });
+          }
+          return;
+        }
+        for (const [b, nodes] of bodies.current) {
+          const xp = pose.xpos[b];
+          const xq = pose.xquat[b];
+          const r0 = rest.current.get(b);
+          if (!xp || !xq || !r0 || nodes.length === 0) continue;
+          const pNow = new Vector3(xp[0], xp[1], xp[2]).applyMatrix4(MJ_TO_GL);
+          const qNow = Q_MJ_TO_GL.clone().multiply(new Quaternion(xq[1], xq[2], xq[3], xq[0]));
+          const dq = qNow.multiply(r0.q.clone().invert());
+          const dp = pNow.sub(r0.p.clone().applyQuaternion(dq));
+          target.current.set(b, { p: dp, q: dq });
+        }
+      } finally {
+        busy = false;
+      }
+    }, 220);
+    return () => {
+      live = false;
+      clearInterval(id);
+    };
+  }, [drive, obj, motion]);
+
+  useFrame(() => {
+    if (!drive) return;
+    for (const [b, t] of target.current) {
+      for (const n of bodies.current.get(b) ?? []) {
+        n.position.lerp(t.p, 0.25);
+        n.quaternion.slerp(t.q, 0.25);
+      }
+    }
+  });
   useEffect(() => {
     let live = true;
     loadG1(url)
       .then((scene) => {
         if (!live) return;
         const clone = scene.clone(true);
+        const map = new Map<number, Object3D[]>();
         clone.traverse((o) => {
           if ((o as { isMesh?: boolean }).isMesh) {
             o.castShadow = true;
             o.receiveShadow = false;
           }
+          const m = /^body(\d+)_/.exec(o.name);
+          if (m) {
+            const b = Number(m[1]);
+            map.set(b, [...(map.get(b) ?? []), o]);
+          }
         });
+        bodies.current = map;
         setObj(clone);
       })
       .catch(() => {
