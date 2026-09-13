@@ -6,6 +6,7 @@ import {
   createGame,
   currentStep,
   fileStickyAnyway,
+  forceNextBake,
   interact,
   startShift,
   type Game,
@@ -68,7 +69,7 @@ export function NightOven() {
                 <p className="text-xs uppercase tracking-widest text-muted">TRACELAW café</p>
                 <h1 className="mt-1 font-display text-3xl">Bake the 2048</h1>
                 <p className="mt-3 text-sm text-muted">
-                  The G1 robot runs the orders; its brain is a model on an RTX PRO 6000. When the oven jams, Jules tapes a lazy note: ALWAYS BAKE SMALLER. You are the manager: WASD to the BINDER, Space to tear up the note and file the real rule. Only rules that would not have ruined last week’s perfect loaf go in the binder.
+                  An order comes in. The Unitree G1 makes it. If it fails, it learns the right rule and does it again. Its brain is a model on an RTX PRO 6000; when the oven jams, Jules tapes a lazy note: ALWAYS BAKE SMALLER. You are the manager: WASD to the BINDER, Space to tear up the note and file the real rule.
                 </p>
                 <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
                   <Button size="lg" onClick={play}>
@@ -147,6 +148,17 @@ export function NightOven() {
           <p className="rounded-md bg-elevated/80 px-2 py-0.5 text-center font-mono text-xs text-muted">Robot brain (GPU) · {ui.gpu}</p>
           <p className="rounded-md bg-elevated/80 px-2 py-0.5 text-center font-mono text-xs text-muted">Second judge (TypeSafe) · {ui.judge}</p>
         </div>
+
+        {ui.phase === "play" ? (
+          <div className="absolute bottom-4 right-4 z-10 flex gap-1 opacity-40 transition hover:opacity-90">
+            <button type="button" className="rounded bg-elevated px-2 py-0.5 font-mono text-[10px] text-muted" onClick={() => forceNextBake(gameRef.current, "clean")}>
+              next: success
+            </button>
+            <button type="button" className="rounded bg-elevated px-2 py-0.5 font-mono text-[10px] text-muted" onClick={() => forceNextBake(gameRef.current, "jam")}>
+              next: failure
+            </button>
+          </div>
+        ) : null}
 
         <div className="absolute bottom-24 left-0 right-0 z-10 flex justify-center gap-6 sm:hidden">
           <div className="grid grid-cols-3 gap-1">

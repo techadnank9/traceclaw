@@ -44,6 +44,7 @@ export type Game = {
   baker: Body & { hold: Hold; ai: number; task: "idle" | "pull" };
   gpu: { pending: boolean; last: GpuPlan | null; seq: number };
   judge: { pending: boolean; last: (JudgeVerdict & { kind: string; ruling: string }) | null };
+  forceNext: "jam" | "clean" | null;
   customers: Customer[];
   oven: Oven;
   laws: Law[];
@@ -89,6 +90,7 @@ export function createGame(): Game {
     baker: { ...body(560, 180), hold: "empty", ai: 0, task: "idle" },
     gpu: { pending: false, last: null, seq: 0 },
     judge: { pending: false, last: null },
+    forceNext: null,
     customers: [],
     oven: { has: "empty", t: 0, jam: false, books: 1 },
     laws: [],
@@ -133,6 +135,7 @@ export function startShift(g: Game) {
   g.cass = body(220, 168);
   g.gpu = { pending: false, last: null, seq: 0 };
   g.judge = { pending: false, last: null };
+  g.forceNext = null;
   g.customers = [];
   g.oven = { has: "empty", t: 0, jam: false, books: 1 };
   g.ticket = false;
@@ -179,7 +182,8 @@ function moveToward(b: Body, x: number, y: number, speed: number, dt: number) {
 function loadOven(g: Game, from: Hold) {
   if (g.oven.has !== "empty") return false;
   if (from !== "raw") return false;
-  const jam = g.firstJam || Math.random() < 0.4;
+  const jam = g.forceNext ? g.forceNext === "jam" : g.firstJam || Math.random() < 0.4;
+  g.forceNext = null;
   g.firstJam = false;
   g.oven = { has: "raw", t: jam ? 3.4 : 2.6, jam, books: jam ? 2 : 1 };
   g.hint = jam ? "Two recipe books on the oven — that extra copy jams it. The robot is reading the ticket…" : "Baking — wait for the ding.";
@@ -344,8 +348,14 @@ export function interact(g: Game) {
   }
   if (near(p, ST.binder) && p.hold === "burnt") {
     p.hold = "empty";
-    g.hint = "Tossed. File the camera rule, not Jules’s sticky.";
+    g.hint = "Tossed. File the real rule, not Jules’s note.";
   }
+}
+
+/** Demo steering: decide whether the next bake jams. Subtle buttons in the HUD. */
+export function forceNextBake(g: Game, kind: "jam" | "clean") {
+  g.forceNext = kind;
+  g.hint = kind === "jam" ? "Next bake will jam." : "Next bake will be clean.";
 }
 
 export function fileStickyAnyway(g: Game) {
