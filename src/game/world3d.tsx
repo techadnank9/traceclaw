@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows, Gltf, Html } from "@react-three/drei";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import type { Object3D } from "three";
 import type { Group, MeshStandardMaterial, PointLight } from "three";
 import { CafeRoom } from "./cafe-room";
 import { H, W, ST, tick, type Game, type Hold } from "./bakery";
@@ -184,7 +186,7 @@ function Robot({
   const label = who === "you" ? "You" : who === "jules" ? "Jules" : who === "cass" ? "Cass" : "";
   return (
     <group ref={ref}>
-      {glb ? <Gltf src={url} /> : <RobotBody accent={accent} intern={who === "jules"} />}
+      {glb ? <G1Body url={url} /> : <RobotBody accent={accent} intern={who === "jules"} />}
       <HandMuffin pick={pick} />
       {label ? (
         <Html center position={[0, 1.7, 0]}>
@@ -278,10 +280,56 @@ function Book() {
   );
 }
 
+/** Module-level cache: one parse per URL, shared by every robot that uses it. */
+const g1Cache = new Map<string, Promise<Object3D>>();
+function loadG1(url: string): Promise<Object3D> {
+  let p = g1Cache.get(url);
+  if (!p) {
+    p = fetch(url)
+      .then((r) => r.arrayBuffer())
+      .then(
+        (buf) =>
+          new Promise<Object3D>((res, rej) => new GLTFLoader().parse(buf, "/models/", (g) => res(g.scene), rej)),
+      );
+    g1Cache.set(url, p);
+  }
+  return p;
+}
+
+/**
+ * Unitree G1 body without Suspense: drei's <Gltf> suspends the whole scene and,
+ * with several robots, remount-storms until WebGL loses its context.
+ */
+function G1Body({ url }: { url: string }) {
+  const [obj, setObj] = useState<Object3D | null>(null);
+  useEffect(() => {
+    let live = true;
+    loadG1(url)
+      .then((scene) => {
+        if (!live) return;
+        const clone = scene.clone(true);
+        clone.traverse((o) => {
+          if ((o as { isMesh?: boolean }).isMesh) {
+            o.castShadow = true;
+            o.receiveShadow = false;
+          }
+        });
+        setObj(clone);
+      })
+      .catch(() => {
+        if (live) setObj(null);
+      });
+    return () => {
+      live = false;
+    };
+  }, [url]);
+  return obj ? <primitive object={obj} /> : null;
+}
+
 function wantG1(): boolean {
   if (typeof window === "undefined") return false;
-  const q = new URLSearchParams(window.location.search);
-  return q.has("g1") && q.get("g1") !== "0";
+  // G1 is the default; ?g1=0 falls back to the placeholder bodies.
+  return new URLSearchParams(window.location.search).get("g1") !== "0";
 }
 
 function useOptional(url: string) {

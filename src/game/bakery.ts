@@ -437,6 +437,56 @@ function bakerAi(g: Game, dt: number) {
     }
     return;
   }
+  // Autopilot: the G1 runs the whole order loop. The human can still help and files the laws.
+  const SPEED_G1 = 120;
+  if (!g.ticket) {
+    const waiting = g.customers.find((c) => c.alive);
+    if (!waiting) {
+      moveToward(b, ST.oven.x + 48, ST.oven.y + 42, 40, dt);
+      return;
+    }
+    if (moveToward(b, ST.register.x + 40, ST.register.y + 30, SPEED_G1, dt) && b.hold === "empty") {
+      g.ticket = true;
+      pop(g, "G1 took the ticket");
+    }
+    return;
+  }
+  if (b.hold === "empty" && g.oven.has === "empty") {
+    if (moveToward(b, ST.tray.x - 20, ST.tray.y + 10, SPEED_G1, dt)) b.hold = "raw";
+    return;
+  }
+  if (b.hold === "raw") {
+    if (moveToward(b, ST.oven.x + 30, ST.oven.y + 40, SPEED_G1, dt)) {
+      if (loadOven(g, "raw")) b.hold = "empty";
+    }
+    return;
+  }
+  if (b.hold === "empty" && (g.oven.has === "cooked" || g.oven.has === "burnt")) {
+    if (moveToward(b, ST.oven.x + 30, ST.oven.y + 40, SPEED_G1, dt)) {
+      b.hold = g.oven.has;
+      g.oven.has = "empty";
+      g.oven.books = 1;
+    }
+    return;
+  }
+  if (b.hold === "cooked") {
+    if (moveToward(b, ST.register.x + 40, ST.register.y + 30, SPEED_G1, dt)) {
+      const waiting = g.customers.find((c) => c.alive);
+      const tip = 10 + g.combo * 2;
+      g.cash += tip;
+      g.served += 1;
+      g.combo += 1;
+      if (waiting) waiting.alive = false;
+      b.hold = "empty";
+      g.ticket = false;
+      pop(g, `G1 served +$${tip}`);
+    }
+    return;
+  }
+  if (b.hold === "burnt") {
+    if (moveToward(b, ST.binder.x + 40, ST.binder.y + 30, SPEED_G1, dt)) b.hold = "empty";
+    return;
+  }
   const jam = g.oven.books === 2;
   moveToward(b, ST.oven.x + (jam ? 24 : 48), ST.oven.y + 42, jam ? 110 : 40, dt);
 }
