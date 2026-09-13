@@ -269,6 +269,98 @@ def mujoco(mo):
 
 
 @app.cell
+def gait(mo):
+    import math as _math, mujoco as _mj
+
+    _gm = _mj.MjModel.from_xml_path("/marimo/g1/unitree_g1/scene.xml")
+    _gd = _mj.MjData(_gm)
+    _gk = _mj.mj_name2id(_gm, _mj.mjtObj.mjOBJ_KEY, "stand")
+    _mj.mj_resetDataKeyframe(_gm, _gd, _gk)
+    _gd.ctrl[:] = _gm.key_ctrl[_gk]
+    _gait_ids = {n: _mj.mj_name2id(_gm, _mj.mjtObj.mjOBJ_ACTUATOR, n) for n in
+        ["left_hip_pitch_joint", "right_hip_pitch_joint", "left_knee_joint", "right_knee_joint",
+         "left_shoulder_pitch_joint", "right_shoulder_pitch_joint"]}
+    gait_bodies = [_mj.mj_id2name(_gm, _mj.mjtObj.mjOBJ_BODY, b) for b in range(_gm.nbody)]
+
+    def g1_gait(phase: float, moving: bool, steps: int = 12) -> dict:
+        """Real MuJoCo step: swing hips/knees/arms toward gait targets, integrate physics, return body poses."""
+        base = _gm.key_ctrl[_gk].copy()
+        a = 0.45 if moving else 0.0
+        s = _math.sin(phase)
+        base[_gait_ids["left_hip_pitch_joint"]] += -a * s
+        base[_gait_ids["right_hip_pitch_joint"]] += a * s
+        base[_gait_ids["left_knee_joint"]] += 0.6 * a * max(0.0, s)
+        base[_gait_ids["right_knee_joint"]] += 0.6 * a * max(0.0, -s)
+        base[_gait_ids["left_shoulder_pitch_joint"]] += 0.6 * a * s
+        base[_gait_ids["right_shoulder_pitch_joint"]] += -0.6 * a * s
+        _gd.ctrl[:] = base
+        # keep the pelvis over the floor: the café moves the body, physics only articulates it
+        _gd.qpos[0:2] = 0.0
+        _gd.qvel[0:2] = 0.0
+        for _ in range(steps):
+            _mj.mj_step(_gm, _gd)
+        if _gd.qpos[2] < 0.5:  # fell: reset, keep going
+            _mj.mj_resetDataKeyframe(_gm, _gd, _gk)
+        return {"xpos": [[round(float(v), 4) for v in _gd.xpos[b]] for b in range(_gm.nbody)],
+                "xquat": [[round(float(v), 4) for v in _gd.xquat[b]] for b in range(_gm.nbody)],
+                "pelvis_z": round(float(_gd.qpos[2]), 3)}
+
+    _probe = g1_gait(0.0, False)
+    mo.md(f"## G1 gait sim armed\n{len(gait_bodies)} bodies · pelvis {_probe['pelvis_z']} m · `g1_gait(phase, moving)` serves the café.")
+    return
+
+
+@app.cell
+def rlwalk(mo):
+    import numpy as _np, mujoco as _mjc, onnxruntime as _rt
+    from mujoco_playground._src.locomotion.g1 import g1_constants as _g1c
+    from mujoco_playground._src.locomotion.g1.base import get_assets as _g1_assets
+
+    class G1Walker:
+        """Pretrained MuJoCo Playground G1 joystick policy (ONNX), run headless in C MuJoCo."""
+        def __init__(self):
+            self.m = _mjc.MjModel.from_xml_path(_g1c.FEET_ONLY_FLAT_TERRAIN_XML.as_posix(), assets=_g1_assets())
+            self.d = _mjc.MjData(self.m)
+            _mjc.mj_resetDataKeyframe(self.m, self.d, 1)
+            self.ctrl_dt, self.sim_dt = 0.02, 0.002
+            self.m.opt.timestep = self.sim_dt
+            self.n_sub = int(round(self.ctrl_dt / self.sim_dt))
+            self.default = _np.array(self.m.keyframe("knees_bent").qpos[7:])
+            self.policy = _rt.InferenceSession("/marimo/g1/mp/mujoco_playground/experimental/sim2sim/onnx/g1_policy.onnx", providers=["CPUExecutionProvider"])
+            self.last = _np.zeros_like(self.default, dtype=_np.float32)
+            self.phase = _np.array([0.0, _np.pi]); self.phase_dt = 2 * _np.pi * 1.5 * self.ctrl_dt
+            self.names = [_mjc.mj_id2name(self.m, _mjc.mjtObj.mjOBJ_BODY, b) for b in range(self.m.nbody)]
+        def obs(self, cmd):
+            d, m = self.d, self.m
+            linvel = d.sensor("local_linvel_pelvis").data; gyro = d.sensor("gyro_pelvis").data
+            imu = d.site_xmat[m.site("imu_in_pelvis").id].reshape(3, 3); grav = imu.T @ _np.array([0, 0, -1])
+            ph = _np.concatenate([_np.cos(self.phase), _np.sin(self.phase)])
+            return _np.hstack([linvel, gyro, grav, cmd, d.qpos[7:] - self.default, d.qvel[6:], self.last, ph]).astype(_np.float32)
+        def step(self, vx=0.0, vy=0.0, wz=0.0, n_ctrl=10):
+            cmd = _np.array([vx, vy, wz], dtype=_np.float32)
+            for _ in range(n_ctrl):
+                a = self.policy.run(["continuous_actions"], {"obs": self.obs(cmd).reshape(1, -1)})[0][0]
+                self.last = a.copy(); self.d.ctrl[:] = a * 0.5 + self.default
+                self.phase = _np.fmod(self.phase + self.phase_dt + _np.pi, 2 * _np.pi) - _np.pi
+                for _ in range(self.n_sub): _mjc.mj_step(self.m, self.d)
+            return {"pelvis": [round(float(v), 3) for v in self.d.qpos[:3]],
+                    "xpos": [[round(float(v), 4) for v in self.d.xpos[b]] for b in range(self.m.nbody)],
+                    "xquat": [[round(float(v), 4) for v in self.d.xquat[b]] for b in range(self.m.nbody)]}
+        def reset(self):
+            _mjc.mj_resetDataKeyframe(self.m, self.d, 1); self.last[:] = 0; self.phase = _np.array([0.0, _np.pi])
+
+    g1_walker = G1Walker()
+    _t0 = g1_walker.step(0, 0, 0, 25)["pelvis"]
+    _t1 = g1_walker.step(0.8, 0, 0, 100)["pelvis"]   # 2 s at 0.8 m/s forward
+    mo.md(f"""
+    ## G1 walks in MuJoCo — pretrained RL policy, real physics
+    MuJoCo Playground `g1_policy.onnx` (joystick locomotion) in C MuJoCo on this box. Stand: pelvis {_t0}. After 2 s of `vx=0.8`: pelvis {_t1} — **moved {round(_t1[0]-_t0[0], 2)} m, height {_t1[2]} m**.
+    `g1_walker.step(vx, vy, wz)` serves the café: the game sends the robot's velocity command, MuJoCo returns the body poses.
+    """)
+    return
+
+
+@app.cell
 def demo(mo):
     mo.md("""
     ## 60-second demo
