@@ -1,4 +1,5 @@
 Drop Blender glTF here. The game loads them if present; otherwise it uses the lit bakery blocks.
+you/jules/cass.glb are the Unitree G1 baked from MuJoCo Menagerie by scripts/g1/export_g1.py; they load only with ?g1=1 in the URL.
 
 Filenames (exact):
   bakery.glb   — room, counter, oven shell, register, tray, binder desk

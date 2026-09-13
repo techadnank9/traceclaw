@@ -298,7 +298,8 @@ export function interact(g: Game) {
     askSecondJudge(g, law);
     g.phase = "play";
     g.oven.has = "empty";
-    g.hint = "Filed: put extra book back. Next jam will live.";
+    g.firstJam = true;
+    g.hint = "Filed: put extra book back. Next jam will live — watch the GPU robot.";
     pop(g, "Filed");
     return;
   }

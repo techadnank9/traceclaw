@@ -159,7 +159,10 @@ function Robot({
   accent: string;
 }) {
   const ref = useRef<Group>(null);
-  const url = who === "cust" ? "" : `/models/${who}.glb`;
+  const last = useRef<{ x: number; z: number; amp: number }>({ x: 0, z: 0, amp: 0 });
+  // Unitree G1 glTFs (scripts/g1/export_g1.py) are opt-in via ?g1=1 until the
+  // embedded-WebGL path is proven; the lit placeholder bodies are the default.
+  const url = who === "cust" || !wantG1() ? "" : `/models/${who}.glb`;
   const glb = useOptional(url);
   useFrame(() => {
     const b = pick();
@@ -170,7 +173,12 @@ function Robot({
     }
     ref.current.visible = true;
     const [x, , z] = toWorld(b.x, b.y);
-    ref.current.position.set(x, 0.05 * Math.abs(Math.sin(b.bob * 8)), z);
+    // Bob only while actually walking; standing still must not shake.
+    const moved = Math.hypot(x - last.current.x, z - last.current.z) > 0.002;
+    last.current.amp += ((moved ? 0.05 : 0) - last.current.amp) * 0.2;
+    last.current.x = x;
+    last.current.z = z;
+    ref.current.position.set(x, last.current.amp * Math.abs(Math.sin(b.bob * 8)), z);
     ref.current.rotation.y = -b.facing + Math.PI / 2;
   });
   const label = who === "you" ? "You" : who === "jules" ? "Jules" : who === "cass" ? "Cass" : "";
@@ -268,6 +276,12 @@ function Book() {
       <meshStandardMaterial color="#3f6b4e" />
     </mesh>
   );
+}
+
+function wantG1(): boolean {
+  if (typeof window === "undefined") return false;
+  const q = new URLSearchParams(window.location.search);
+  return q.has("g1") && q.get("g1") !== "0";
 }
 
 function useOptional(url: string) {
