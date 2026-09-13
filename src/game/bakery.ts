@@ -11,6 +11,7 @@ import {
 import type { EvalReport, Law } from "@/lib/tracelaw/types";
 import { camera } from "@/lib/tracelaw/camera";
 import { askGpu, type GpuPlan } from "@/lib/tracelaw/gpu";
+import { askJudge, type JudgeVerdict } from "@/lib/tracelaw/typesafe";
 
 export const W = 960;
 export const H = 540;
@@ -42,6 +43,7 @@ export type Game = {
   cass: Body;
   baker: Body & { hold: Hold; ai: number; task: "idle" | "pull" };
   gpu: { pending: boolean; last: GpuPlan | null; seq: number };
+  judge: { pending: boolean; last: (JudgeVerdict & { kind: string; ruling: string }) | null };
   customers: Customer[];
   oven: Oven;
   laws: Law[];
@@ -86,6 +88,7 @@ export function createGame(): Game {
     cass: body(220, 168),
     baker: { ...body(560, 180), hold: "empty", ai: 0, task: "idle" },
     gpu: { pending: false, last: null, seq: 0 },
+    judge: { pending: false, last: null },
     customers: [],
     oven: { has: "empty", t: 0, jam: false, books: 1 },
     laws: [],
@@ -129,6 +132,7 @@ export function startShift(g: Game) {
   g.baker = { ...body(560, 180), hold: "empty", ai: 0, task: "idle" };
   g.cass = body(220, 168);
   g.gpu = { pending: false, last: null, seq: 0 };
+  g.judge = { pending: false, last: null };
   g.customers = [];
   g.oven = { has: "empty", t: 0, jam: false, books: 1 };
   g.ticket = false;
@@ -181,6 +185,22 @@ function loadOven(g: Game, from: Hold) {
   g.hint = jam ? "Jules slammed an extra recipe book. GPU robot is reading the ticket…" : "Baking — wait for the ding.";
   if (jam) askRobot(g);
   return true;
+}
+
+/** A filed law → TypeSafe Jev: catches failure? punishes gold? admit/reject. Second opinion only. */
+function askSecondJudge(g: Game, law: Law) {
+  g.judge.pending = true;
+  const fail = failNight1();
+  const gold = archiveTrace();
+  void askJudge({
+    law: { kind: law.kind, predicate: law.predicate, reason: law.reason, status: law.status },
+    failed_night: { job_id: fail.jobId, passed: fail.passed, ...fail.attrs },
+    gold_night: { job_id: gold.jobId, passed: gold.passed, ...gold.attrs },
+  }).then((v) => {
+    g.judge.pending = false;
+    g.judge.last = { ...v, kind: law.kind, ruling: law.status };
+    camera("judge", { kind: law.kind, ruling: law.status, ...v });
+  });
 }
 
 /** Ticket → molab GPU → court check → Jules acts. Fails closed: offline GPU changes nothing. */
@@ -266,6 +286,7 @@ export function interact(g: Game) {
       const { law } = proposeLaw("cut_batch", fail, gold, g.laws);
       g.laws = [...g.laws, law];
       camera("court", { kind: law.kind, status: law.status, reason: law.reason, predicate: law.predicate });
+      askSecondJudge(g, law);
       p.hold = "empty";
       g.hint = "Sticky thrown out. Space again to file the camera rule.";
       pop(g, "Thrown out");
@@ -274,6 +295,7 @@ export function interact(g: Game) {
     const { law } = proposeLaw("free_ckpt", fail, gold, g.laws);
     g.laws = repealIfHitsGold([...g.laws.filter((l) => l.id !== law.id), law], gold);
     camera("court", { kind: law.kind, status: law.status, reason: law.reason, predicate: law.predicate });
+    askSecondJudge(g, law);
     g.phase = "play";
     g.oven.has = "empty";
     g.hint = "Filed: put extra book back. Next jam will live.";
@@ -332,6 +354,7 @@ export function fileStickyAnyway(g: Game) {
   g.phase = "play";
   g.goldHit = true;
   camera("court", { kind: law.kind, status: law.status, reason: "filed sticky anyway", predicate: law.predicate, goldHit: true });
+  askSecondJudge(g, law);
   g.oven.has = "empty";
   g.hint = "You filed the sticky. Every 2048 batch will die.";
   pop(g, "Gold ruined");

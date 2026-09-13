@@ -35,16 +35,16 @@ export function NightOven() {
   };
 
   return (
-    <div className="flex min-h-dvh flex-col bg-bg text-fg">
-      <div className="relative mx-auto flex w-full max-w-5xl flex-1 flex-col px-3 py-3">
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-md bg-elevated px-3 py-2 shadow-sheet">
-          <p className="font-display text-lg">The Night Oven</p>
-          <p className="font-mono text-sm">
+    <div className="fixed inset-0 overflow-hidden bg-[#2a2018] text-fg">
+      <div className="relative h-full w-full">
+        <div className="pointer-events-none absolute left-0 right-0 top-0 z-10 flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+          <p className="font-display text-xl text-[#f3e9d8] drop-shadow">The Night Oven</p>
+          <p className="rounded-md bg-elevated/90 px-3 py-1 font-mono text-sm shadow-sheet">
             ${ui.cash} · {ui.served} served · {ui.walked} gone · {fmt(ui.timeLeft)}
           </p>
         </div>
 
-        <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-border bg-[#2a2018] shadow-sheet">
+        <div className="absolute inset-0">
           <Canvas
             className="absolute inset-0 touch-none"
             shadows
@@ -75,7 +75,7 @@ export function NightOven() {
                     Play
                   </Button>
                   <Button size="lg" variant="secondary" onClick={() => setLab(true)}>
-                    GPU robot
+                    Robot log
                   </Button>
                 </div>
               </div>
@@ -83,7 +83,7 @@ export function NightOven() {
           ) : null}
 
           {ui.phase === "play" || ui.phase === "court" ? (
-            <div className="pointer-events-none absolute left-3 top-3 max-w-sm rounded-md bg-elevated/95 p-3 shadow-sheet">
+            <div className="pointer-events-none absolute left-4 top-16 z-10 max-w-sm rounded-md bg-elevated/95 p-3 shadow-sheet">
               <p className="text-[10px] uppercase tracking-widest text-muted">Ticket · 2048 croissant</p>
               <ol className="mt-1 space-y-0.5 font-mono text-xs">
                 {["Register — take order", "Tray — raw muffin", "Oven — bake", "Register — serve"].map((line, i) => (
@@ -97,7 +97,7 @@ export function NightOven() {
           ) : null}
 
           {ui.phase === "court" ? (
-            <div className="absolute bottom-3 left-3 right-3 rounded-md bg-elevated/95 p-3 shadow-sheet">
+            <div className="absolute bottom-28 left-4 right-4 z-10 mx-auto max-w-xl rounded-md bg-elevated/95 p-3 shadow-sheet">
               <p className="font-display text-lg text-danger">FAIL — extra book</p>
               <p className="text-sm text-muted">Walk to BINDER. Space throws Jules’s sticky, Space again files the camera rule.</p>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -134,7 +134,7 @@ export function NightOven() {
                     Play
                   </Button>
                   <Button size="lg" variant="secondary" onClick={() => setLab(true)}>
-                    GPU robot
+                    Robot log
                   </Button>
                 </div>
               </div>
@@ -142,10 +142,13 @@ export function NightOven() {
           ) : null}
         </div>
 
-        <p className="mt-2 text-center text-sm text-muted">{ui.hint}</p>
-        <p className="mt-1 text-center font-mono text-xs text-muted">GPU robot · {ui.gpu}</p>
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 flex flex-col items-center gap-1 px-4 pb-4">
+          <p className="rounded-md bg-elevated/90 px-3 py-1 text-center text-sm shadow-sheet">{ui.hint}</p>
+          <p className="rounded-md bg-elevated/80 px-2 py-0.5 text-center font-mono text-xs text-muted">GPU robot · {ui.gpu}</p>
+          <p className="rounded-md bg-elevated/80 px-2 py-0.5 text-center font-mono text-xs text-muted">TypeSafe judge · {ui.judge}</p>
+        </div>
 
-        <div className="mt-2 flex justify-center gap-6 sm:hidden">
+        <div className="absolute bottom-24 left-0 right-0 z-10 flex justify-center gap-6 sm:hidden">
           <div className="grid grid-cols-3 gap-1">
             <span />
             <Pad onHold={(on) => hold("KeyW", on)}>W</Pad>
@@ -173,6 +176,7 @@ function snap(g: Game) {
     hint: g.hint,
     evals: g.evals,
     gpu: g.gpu.pending ? "thinking" : g.gpu.last ? (g.gpu.last.camera === "gpu" ? `${g.gpu.last.struck ? `${g.gpu.last.wanted ?? "?"} ✂` : g.gpu.last.action} · ${g.gpu.last.ms ?? "?"} ms · ${(g.gpu.last.device ?? "GPU").replace(" Blackwell Server Edition", "")}` : "offline") : "idle",
+    judge: g.judge.pending ? "Jev thinking" : g.judge.last ? (g.judge.last.camera === "typesafe" ? `${g.judge.last.kind}: court ${g.judge.last.ruling} · Jev ${g.judge.last.verdict} ${Math.round((g.judge.last.confidence ?? 0) * 100)}% · punishes gold ${Math.round((g.judge.last.punishes_gold ?? 0) * 100)}% · ${g.judge.last.ms ?? "?"} ms` : "offline (no TYPESAFE_API_KEY)") : "idle",
     step: currentStep(g),
     ticket: g.ticket,
   };

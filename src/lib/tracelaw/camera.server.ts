@@ -25,6 +25,7 @@ async function boot() {
       court: mk("cafe.court_verdict"),
       night_over: mk("cafe.night_over"),
       robot: mk("cafe.gpu_robot"),
+      judge: mk("cafe.typesafe_judge"),
     },
   };
 }

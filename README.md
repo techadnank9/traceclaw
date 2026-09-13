@@ -22,9 +22,10 @@ python3 -m court eval
 
 | Sponsor | What it does here | Where |
 | --- | --- | --- |
-| **W&B Weave** | Every loop step is a `weave.op`: `propose_law` → `veto_against_gold` → `serve_night`. Three nights = `weave.Dataset`. Three binders (`no-binder`, `sticky-forced`, `court-binder`) = `weave.Model`s scored by `weave.Evaluation` on *alive AND batch held at 2048*. Court binder 3/3, sticky punishes gold. | `court/weave_loop.py`, [Weave](https://wandb.ai/iamadnan/tracelaw/weave) |
-| **marimo molab** | RTX PRO 6000 notebook. Qwen2.5-0.5B on CUDA reads each ticket + binder and picks an action; court strikes anything not admitted; bake. GPU cell shows the "extra book" (duplicate tensor) freed. Cells were written by a coding agent via `marimo pair`. Robot results exported to `fixtures/robot-shift.json` and shown in-game (**GPU robot** button). | [notebook](https://molab.marimo.io/notebooks/nb_XpnzWXXyteA47H9NYunt5T), `notebooks/night_oven.py` |
-| **ARIA / TypeSafe AI** | Not integrated. No time, no API in hand. Said plainly. | — |
+| **W&B Weave** | The browser game itself is traced: `cafe.oven_bake`, `cafe.gpu_robot`, `cafe.court_verdict`, `cafe.typesafe_judge`, `cafe.night_over` land as `weave.op` calls through a server function (key stays server-side). CLI side: `propose_law` → `veto_against_gold` → `serve_night`. Three nights = `weave.Dataset`. Three binders (`no-binder`, `sticky-forced`, `court-binder`) = `weave.Model`s scored by `weave.Evaluation` on *alive AND batch held at 2048*. Court binder 3/3, sticky punishes gold. | `court/weave_loop.py`, [Weave](https://wandb.ai/iamadnan/tracelaw/weave) |
+| **marimo molab** | RTX PRO 6000 notebook is the robot's brain, **live**: every oven jam in the game POSTs the ticket + binder to the molab kernel (`/api/kernel/execute`), Qwen2.5-0.5B on CUDA picks an action, the court strikes anything not admitted, and Jules physically walks to the oven and pulls the extra book. ~300 ms per decision, shown in the HUD. Cells were written by a coding agent via `marimo pair`; the notebook's own shift run is exported to `fixtures/robot-shift.json` (**Robot log** button). Needs `MOLAB_URL` + `MARIMO_TOKEN` from molab's "Pair with an agent"; fails closed. | [notebook](https://molab.marimo.io/notebooks/nb_XpnzWXXyteA47H9NYunt5T), `notebooks/night_oven.py` |
+| **TypeSafe AI (Jev)** | Second judge in the court. Every filed law goes to `POST /v1/systemone` with three typed questions: `catches_failure` (noul), `punishes_gold` (noul), `verdict` (choice admit/reject). The deterministic binder stays the law of record; Jev's calibrated view + confidence is shown in the HUD and traced to Weave. Needs `TYPESAFE_API_KEY`; fails closed to "offline". | `src/lib/tracelaw/typesafe.server.ts` |
+| **ARIA** | Not integrated. Said plainly. | — |
 
 ## The loop, as judges will see it
 
@@ -80,7 +81,7 @@ Homebrew + Python already installed.
    `brew install node@22`  
    then put `/opt/homebrew/opt/node@22/bin` on your PATH.
 2. Unzip this repo, `cd` into it.
-3. `cp env.example .env`
+3. `cp env.example .env` — add `WANDB_API_KEY`, `WANDB_ENTITY`, and optionally `MOLAB_URL`/`MARIMO_TOKEN` (molab → Pair with an agent) and `TYPESAFE_API_KEY` (console.typesafe.ai). Everything fails closed without them.
 4. `npm install`
 5. Prove the court: `python3 -m court replay` and `python3 -m court eval`
 If `npm run dev` says `spawn vite ENOENT`, Vite is not installed yet:
