@@ -125,7 +125,7 @@ def weave(mo):
         try:
             import weave
 
-            weave.init(os.environ.get("WANDB_ENTITY", "night-oven") + "/night-oven")
+            weave.init(os.environ.get("WANDB_ENTITY", "iamadnan") + "/" + os.environ.get("WANDB_PROJECT", "tracelaw"))
             mo.md("## Weave\n`weave.init` ok. Open the printed project link.")
         except Exception as e:
             mo.md(f"## Weave\nKey present but init failed: `{e}`")
