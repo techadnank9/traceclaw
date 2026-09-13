@@ -5,6 +5,12 @@ Header → notebook specs → attach GPU (RTX PRO 6000).
 Cells were written into the running kernel by a coding agent via marimo pair.
 WANDB_API_KEY / WANDB_ENTITY in the kernel env are optional (Weave camera).
 """
+# /// script
+# requires-python = ">=3.13"
+# dependencies = [
+#     "mujoco==3.13.0",
+# ]
+# ///
 
 import marimo
 
@@ -217,6 +223,47 @@ def robot(court, mo):
     **Night 2 — court binder ({', '.join(l['kind'] for l in BINDER) or 'empty'})**
 
     {_table(shift_binder)}
+    """)
+    return
+
+
+@app.cell
+def mujoco(mo):
+    import time as _time, numpy as _np, mujoco
+    import weave as _w
+
+    @_w.op
+    def g1_mujoco_shift(steps: int = 1500) -> dict:
+        """Real MuJoCo physics: the G1 holds the night shift under gravity with position actuators."""
+        m = mujoco.MjModel.from_xml_path("/marimo/g1/unitree_g1/scene.xml")
+        d = mujoco.MjData(m)
+        k = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_KEY, "stand")
+        mujoco.mj_resetDataKeyframe(m, d, k)
+        d.ctrl[:] = m.key_ctrl[k]
+        h0 = float(d.qpos[2])
+        t0 = _time.time()
+        fell_at = None
+        for i in range(steps):
+            mujoco.mj_step(m, d)
+            if fell_at is None and d.qpos[2] < 0.45:
+                fell_at = i * m.opt.timestep
+        wall = _time.time() - t0
+        return {
+            "model": "unitree_g1 (mujoco_menagerie)", "mujoco": mujoco.__version__,
+            "nq": int(m.nq), "nu": int(m.nu), "timestep": float(m.opt.timestep),
+            "sim_seconds": steps * float(m.opt.timestep), "wall_ms": round(wall * 1000),
+            "pelvis_height_start": round(h0, 3), "pelvis_height_end": round(float(d.qpos[2]), 3),
+            "standing": fell_at is None, "fell_at_s": fell_at,
+        }
+
+    mj = g1_mujoco_shift()
+    mo.md(f"""
+    ## G1 in MuJoCo — real physics on the same box
+    `{mj["model"]}` · MuJoCo {mj["mujoco"]} · {mj["nq"]} dof, {mj["nu"]} actuators · {mj["sim_seconds"]:.1f} s simulated in {mj["wall_ms"]} ms
+
+    Pelvis {mj["pelvis_height_start"]} m → {mj["pelvis_height_end"]} m · **{"standing" if mj["standing"] else f"fell at {mj['fell_at_s']:.2f} s"}**
+
+    The café's G1 is this exact model, posed at the `stand` keyframe with MuJoCo forward kinematics and baked to glTF (`scripts/g1/export_g1.py`). The physics loop above is the same body under gravity with its position actuators holding the pose — traced in Weave.
     """)
     return
 
