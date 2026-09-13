@@ -1,0 +1,36 @@
+{
+  "camera": "fixture",
+  "note": "Deterministic replay. Do not string-search these outputs; match attrs.",
+  "jobs": [
+    {
+      "id": "tr-archive",
+      "jobId": "archive",
+      "passed": true,
+      "batch": 2048,
+      "attrs": { "batch": 2048, "param_copies": 1, "oom": false }
+    },
+    {
+      "id": "tr-night1",
+      "jobId": "job_a",
+      "passed": false,
+      "batch": 2048,
+      "firstFaultId": "load-ckpt",
+      "attrs": { "batch": 2048, "param_copies": 2, "oom": true }
+    },
+    {
+      "id": "tr-night2-fail",
+      "jobId": "job_b",
+      "passed": false,
+      "batch": 2048,
+      "firstFaultId": "load-ckpt",
+      "attrs": { "batch": 2048, "param_copies": 2, "oom": true }
+    },
+    {
+      "id": "tr-night2-pass",
+      "jobId": "job_b",
+      "passed": true,
+      "batch": 2048,
+      "attrs": { "batch": 2048, "param_copies": 1, "oom": true }
+    }
+  ]
+}

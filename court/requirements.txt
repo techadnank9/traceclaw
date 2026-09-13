@@ -1,0 +1,2 @@
+# Optional. Fixtures and eval run with stdlib only.
+# weave>=0.51.0

@@ -1,0 +1,18 @@
+Drop Blender glTF here. The game loads them if present; otherwise it uses the lit bakery blocks.
+
+Filenames (exact):
+  bakery.glb   — room, counter, oven shell, register, tray, binder desk
+  you.glb      — player, origin at feet, ~1.6m, Idle + Walk
+  jules.glb    — intern
+  cass.glb     — cashier
+  muffin.glb   — origin at center
+  book.glb     — extra recipe book
+
+Blender export:
+  File → Export → glTF 2.0 (.glb)
+  Format: glTF Binary
+  Transform: +Y up
+  Include: meshes, materials, armature, animations
+  1 Blender meter = 1 game meter
+  Character origin: feet, facing -Y in Blender (glTF +Z)
+  No cameras, no lights (the game lights the night shift)

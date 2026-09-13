@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #d9cfc0;
+  --color-elevated: #fffaf3;
+  --color-subtle: #f4efe6;
+  --color-fg: #1c1915;
+  --color-muted: #7a7268;
+  --color-faint: #9a9186;
+  --color-border: color-mix(in oklab, #1c1915 14%, transparent);
+  --color-accent: #1c1915;
+  --color-accent-foreground: #fffaf3;
+  --color-paper: #fffaf3;
+  --color-ok: #3f6b4e;
+  --color-danger: #c45b4a;
+  --color-warn: #8a5a3a;
+  --color-highlight: #fff3bf;
+  --color-desk: #d9cfc0;
+  --color-ring: #1c1915;
+
+  --font-display: "Fraunces", "Times New Roman", serif;
+  --font-sans: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  --shadow-sheet: 0 10px 30px color-mix(in oklab, #3c2814 14%, transparent);
+
+  --motion-stagger: 40ms;
+  --motion-micro: 80ms;
+  --motion-quick: 150ms;
+  --motion-fast: 250ms;
+  --motion-medium: 350ms;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes hotspot-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, #fff3bf 80%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 10px color-mix(in oklab, #fff3bf 0%, transparent);
+  }
+}
+
+@keyframes stamp-pop {
+  0% {
+    transform: rotate(-18deg) scale(1.45);
+    opacity: 0;
+  }
+  100% {
+    transform: rotate(-12deg) scale(1);
+    opacity: 1;
+  }
+}
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  html,
+  body,
+  #app {
+    min-height: 100%;
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+  }
+
+  body {
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
