@@ -68,7 +68,7 @@ export function NightOven() {
                 <p className="text-xs uppercase tracking-widest text-muted">TRACELAW café</p>
                 <h1 className="mt-1 font-display text-3xl">Bake the 2048</h1>
                 <p className="mt-3 text-sm text-muted">
-                  The G1 robot runs the orders; its brain is a model on an RTX PRO 6000. When the oven jams, it slaps a sticky. You are the manager: WASD to the BINDER, Space to throw the sticky and file the camera rule. Only laws that spare last week’s perfect loaf get in.
+                  The G1 robot runs the orders; its brain is a model on an RTX PRO 6000. When the oven jams, Jules tapes a lazy note: ALWAYS BAKE SMALLER. You are the manager: WASD to the BINDER, Space to tear up the note and file the real rule. Only rules that would not have ruined last week’s perfect loaf go in the binder.
                 </p>
                 <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
                   <Button size="lg" onClick={play}>
@@ -98,14 +98,14 @@ export function NightOven() {
 
           {ui.phase === "court" ? (
             <div className="absolute bottom-28 left-4 right-4 z-10 mx-auto max-w-xl rounded-md bg-elevated/95 p-3 shadow-sheet">
-              <p className="font-display text-lg text-danger">FAIL — extra book</p>
-              <p className="text-sm text-muted">Walk to BINDER. Space throws Jules’s sticky, Space again files the camera rule.</p>
+              <p className="font-display text-lg text-danger">Oven jammed — extra recipe book</p>
+              <p className="text-sm text-muted">Jules taped a note on the binder: “ALWAYS BAKE SMALLER.” Walk to the BINDER. Space tears up the note; Space again files the real rule: put the extra recipe book back.</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 <Button size="sm" onClick={() => interact(gameRef.current)}>
-                  Throw sticky / file rule
+                  Tear up note / file rule
                 </Button>
                 <Button size="sm" variant="danger" onClick={() => fileStickyAnyway(gameRef.current)}>
-                  File sticky anyway
+                  Keep Jules’s note
                 </Button>
               </div>
             </div>
@@ -122,7 +122,7 @@ export function NightOven() {
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   {ui.evals.map((e) => (
                     <div key={e.label} className={e.label.includes("sticky") ? "rounded-md bg-danger/10 p-3" : "rounded-md bg-ok/10 p-3"}>
-                      <p className="text-xs uppercase tracking-widest">{e.label.includes("sticky") ? "Sticky" : "Binder"}</p>
+                      <p className="text-xs uppercase tracking-widest">{e.label.includes("sticky") ? "Jules’s note" : "Your binder"}</p>
                       <p className="font-display text-2xl">
                         {e.passed}/{e.total}
                       </p>
@@ -144,8 +144,8 @@ export function NightOven() {
 
         <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 flex flex-col items-center gap-1 px-4 pb-4">
           <p className="rounded-md bg-elevated/90 px-3 py-1 text-center text-sm shadow-sheet">{ui.hint}</p>
-          <p className="rounded-md bg-elevated/80 px-2 py-0.5 text-center font-mono text-xs text-muted">GPU robot · {ui.gpu}</p>
-          <p className="rounded-md bg-elevated/80 px-2 py-0.5 text-center font-mono text-xs text-muted">TypeSafe judge · {ui.judge}</p>
+          <p className="rounded-md bg-elevated/80 px-2 py-0.5 text-center font-mono text-xs text-muted">Robot brain (GPU) · {ui.gpu}</p>
+          <p className="rounded-md bg-elevated/80 px-2 py-0.5 text-center font-mono text-xs text-muted">Second judge (TypeSafe) · {ui.judge}</p>
         </div>
 
         <div className="absolute bottom-24 left-0 right-0 z-10 flex justify-center gap-6 sm:hidden">

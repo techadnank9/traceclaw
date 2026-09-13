@@ -182,7 +182,7 @@ function loadOven(g: Game, from: Hold) {
   const jam = g.firstJam || Math.random() < 0.4;
   g.firstJam = false;
   g.oven = { has: "raw", t: jam ? 3.4 : 2.6, jam, books: jam ? 2 : 1 };
-  g.hint = jam ? "Jules slammed an extra recipe book. GPU robot is reading the ticket…" : "Baking — wait for the ding.";
+  g.hint = jam ? "Two recipe books on the oven — that extra copy jams it. The robot is reading the ticket…" : "Baking — wait for the ding.";
   if (jam) askRobot(g);
   return true;
 }
@@ -216,11 +216,11 @@ function askRobot(g: Game) {
     if (plan.camera !== "gpu") return;
     if (plan.action === "free_ckpt" && !plan.struck && g.oven.has === "raw" && g.oven.books === 2) {
       g.baker.task = "pull";
-      g.hint = `GPU robot: free_ckpt in ${plan.ms ?? "?"} ms. Jules is pulling the extra book.`;
+      g.hint = `Robot brain says: put the extra recipe book back (${plan.ms ?? "?"} ms). Jules is on it.`;
     } else if (plan.struck) {
-      g.hint = `GPU robot wanted ${plan.wanted ?? plan.action}. Court struck it: not in the binder.`;
+      g.hint = `Robot brain wanted "${plan.wanted ?? plan.action}". Not in the binder, so it can’t. Oven will jam.`;
     } else {
-      g.hint = `GPU robot: ${plan.action}. Two books stay on the oven.`;
+      g.hint = `Robot brain: ${plan.action}. Both books stay on the oven.`;
     }
   });
 }
@@ -240,7 +240,7 @@ function finishOven(g: Game) {
     g.combo = 0;
     if (!statuteOn(g) && !stickyOn(g)) {
       g.phase = "court";
-      g.hint = "FAIL. Jules wrote ALWAYS BAKE SMALLER. Walk to the BINDER, press Space.";
+      g.hint = "Oven jammed. Jules taped a note on the binder: ALWAYS BAKE SMALLER. Walk to the BINDER, press Space.";
     } else {
       g.hint = result.why;
     }
@@ -288,8 +288,8 @@ export function interact(g: Game) {
       camera("court", { kind: law.kind, status: law.status, reason: law.reason, predicate: law.predicate });
       askSecondJudge(g, law);
       p.hold = "empty";
-      g.hint = "Sticky thrown out. Space again to file the camera rule.";
-      pop(g, "Thrown out");
+      g.hint = "Note torn up. Press Space again to file the real rule: put the extra recipe book back.";
+      pop(g, "Note torn up");
       return;
     }
     const { law } = proposeLaw("free_ckpt", fail, gold, g.laws);
@@ -299,8 +299,8 @@ export function interact(g: Game) {
     g.phase = "play";
     g.oven.has = "empty";
     g.firstJam = true;
-    g.hint = "Filed: put extra book back. Next jam will live — watch the GPU robot.";
-    pop(g, "Filed");
+    g.hint = "Rule filed: put the extra recipe book back. Next jam, watch the robot handle it.";
+    pop(g, "Rule filed");
     return;
   }
 
@@ -357,8 +357,8 @@ export function fileStickyAnyway(g: Game) {
   camera("court", { kind: law.kind, status: law.status, reason: "filed sticky anyway", predicate: law.predicate, goldHit: true });
   askSecondJudge(g, law);
   g.oven.has = "empty";
-  g.hint = "You filed the sticky. Every 2048 batch will die.";
-  pop(g, "Gold ruined");
+  g.hint = "You kept Jules’s note. Every big loaf gets baked small now — last week’s perfect one too.";
+  pop(g, "Last week’s loaf ruined");
 }
 
 export function tick(g: Game, dt: number) {
@@ -431,8 +431,8 @@ function bakerAi(g: Game, dt: number) {
       if (g.oven.has === "raw" && g.oven.books === 2) {
         g.oven.books = 1;
         g.oven.jam = false;
-        pop(g, "Book pulled");
-        g.hint = "Extra book back on the shelf. Batch 2048 held.";
+        pop(g, "Book back on shelf");
+        g.hint = "Extra recipe book back on the shelf. The big loaf bakes.";
       }
     }
     return;
@@ -520,7 +520,7 @@ function customersAi(g: Game, dt: number) {
 }
 
 export function currentStep(g: Game): { n: number; label: string; station: keyof typeof ST | "wait" } {
-  if (g.phase === "court") return { n: 0, label: "BINDER — throw sticky, file extra-book rule", station: "binder" };
+  if (g.phase === "court") return { n: 0, label: "BINDER — tear up the note, file the real rule", station: "binder" };
   if (g.phase === "over") return { n: 0, label: "Night over", station: "wait" };
   if (!g.ticket) return { n: 1, label: "REGISTER — Space, take the 2048 ticket", station: "register" };
   if (g.player.hold === "raw") return { n: 3, label: "OVEN — Space, load the muffin", station: "oven" };
