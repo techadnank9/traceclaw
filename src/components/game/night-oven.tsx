@@ -65,13 +65,13 @@ export function NightOven() {
 
           {ui.phase === "menu" && !booted && !lab ? (
             <div className="absolute inset-0 z-30 grid place-items-center bg-fg/50 p-4">
-              <div className="max-w-md rounded-xl bg-elevated p-6 text-center shadow-sheet">
+              <div className="w-full max-w-lg rounded-xl bg-elevated p-6 text-center shadow-sheet">
                 <p className="text-xs uppercase tracking-widest text-muted">TRACELAW café</p>
                 <h1 className="mt-1 font-display text-3xl">Bake the 2048</h1>
                 <p className="mt-3 text-sm text-muted">
                   An order comes in. The Unitree G1 makes it. If it fails, it learns the right rule and does it again. Its brain is a model on an RTX PRO 6000; when the oven jams, Jules tapes a lazy note: ALWAYS BAKE SMALLER. You are the manager: WASD to the BINDER, Space to tear up the note and file the real rule.
                 </p>
-                <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
+                <div className="mt-5 flex flex-wrap justify-center gap-2">
                   <Button size="lg" onClick={() => play(false)}>
                     Night 1 · before learning
                   </Button>
