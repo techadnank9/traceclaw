@@ -123,8 +123,15 @@ function stickyOn(g: Game) {
   return g.laws.some((l) => l.kind === "cut_batch" && l.status === "admitted");
 }
 
-export function startShift(g: Game) {
+/**
+ * Night 1 = before learning: empty binder, the first jam kills the loaf.
+ * Night 2 = after learning: the court-admitted rule is already in the binder,
+ * so the robot brain is allowed to put the extra book back.
+ */
+export function startShift(g: Game, learned = false) {
   g.phase = "play";
+  g.laws = learned ? [proposeLaw("free_ckpt", failNight1(), [archiveTrace()], []).law] : [];
+  g.evals = [];
   g.timeLeft = SHIFT;
   g.cash = 0;
   g.served = 0;
@@ -139,7 +146,9 @@ export function startShift(g: Game) {
   g.customers = [];
   g.oven = { has: "empty", t: 0, jam: false, books: 1 };
   g.ticket = false;
-  g.hint = "Customer at the REGISTER. Walk there, press Space — take the 2048 ticket.";
+  g.hint = learned
+    ? "Night 2 — after learning. Binder: put the extra recipe book back. Watch the robot handle the jam."
+    : "Night 1 — before learning. Empty binder. The first jam will fail; you file the rule.";
   g.firstJam = true;
   g.goldHit = false;
   spawnCustomer(g);

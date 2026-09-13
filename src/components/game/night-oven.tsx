@@ -23,8 +23,8 @@ export function NightOven() {
 
   useEffect(() => bindControls(gameRef.current), []);
 
-  const play = () => {
-    startShift(gameRef.current);
+  const play = (learned = false) => {
+    startShift(gameRef.current, learned);
     setBooted(true);
     setUi(snap(gameRef.current));
   };
@@ -72,8 +72,11 @@ export function NightOven() {
                   An order comes in. The Unitree G1 makes it. If it fails, it learns the right rule and does it again. Its brain is a model on an RTX PRO 6000; when the oven jams, Jules tapes a lazy note: ALWAYS BAKE SMALLER. You are the manager: WASD to the BINDER, Space to tear up the note and file the real rule.
                 </p>
                 <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
-                  <Button size="lg" onClick={play}>
-                    Play
+                  <Button size="lg" onClick={() => play(false)}>
+                    Night 1 · before learning
+                  </Button>
+                  <Button size="lg" onClick={() => play(true)}>
+                    Night 2 · after learning
                   </Button>
                   <Button size="lg" variant="secondary" onClick={() => setLab(true)}>
                     Robot log
@@ -131,11 +134,11 @@ export function NightOven() {
                   ))}
                 </div>
                 <div className="mt-5 grid grid-cols-2 gap-2">
-                  <Button size="lg" onClick={play}>
-                    Play
+                  <Button size="lg" onClick={() => play(false)}>
+                    Night 1 · before
                   </Button>
-                  <Button size="lg" variant="secondary" onClick={() => setLab(true)}>
-                    Robot log
+                  <Button size="lg" onClick={() => play(true)}>
+                    Night 2 · after
                   </Button>
                 </div>
               </div>
