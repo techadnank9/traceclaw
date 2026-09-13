@@ -1,6 +1,6 @@
 # THE NIGHT OVEN
 
-W&B team: **superheros** · project: **tracelaw**
+W&B entity: **iamadnan** · project: **tracelaw** · CoreWeave Hacks: Agent Loops (Sept 2026)
 
 A 2:14 AM cafe shift. Maya orders the huge loaf. Jules the intern hands it to Cass the cashier. The oven jams. Jules slaps a sticky note: *always bake smaller*. You are the manager. Last week’s perfect huge loaf is the constitution.
 
@@ -17,6 +17,22 @@ python3 -m court replay
 python3 -m court eval
 ```
 
+
+## Sponsor stack (how each is used, honestly)
+
+| Sponsor | What it does here | Where |
+| --- | --- | --- |
+| **W&B Weave** | Every loop step is a `weave.op`: `propose_law` → `veto_against_gold` → `serve_night`. Three nights = `weave.Dataset`. Three binders (`no-binder`, `sticky-forced`, `court-binder`) = `weave.Model`s scored by `weave.Evaluation` on *alive AND batch held at 2048*. Court binder 3/3, sticky punishes gold. | `court/weave_loop.py`, [Weave](https://wandb.ai/iamadnan/tracelaw/weave) |
+| **marimo molab** | RTX PRO 6000 notebook. Qwen2.5-0.5B on CUDA reads each ticket + binder and picks an action; court strikes anything not admitted; bake. GPU cell shows the "extra book" (duplicate tensor) freed. Cells were written by a coding agent via `marimo pair`. | [notebook](https://molab.marimo.io/notebooks/nb_XpnzWXXyteA47H9NYunt5T), `notebooks/night_oven.py` |
+| **ARIA / TypeSafe AI** | Not integrated. No time, no API in hand. Said plainly. | — |
+
+## The loop, as judges will see it
+
+```
+ticket → robot plan (GPU LLM) → court check (admitted laws only) → bake
+      ↘ fail trace → propose law → veto against gold → binder
+                                                  ↘ Weave Evaluation: no-binder 1/3 · sticky 1/3 (gold punished) · court 3/3
+```
 
 ## Loop
 
@@ -48,13 +64,13 @@ Optional Weave (fails closed if no key):
 
 ```bash
 export WANDB_API_KEY=...
-export WANDB_ENTITY=superheros
+export WANDB_ENTITY=iamadnan
 export WANDB_PROJECT=tracelaw
 python3 -m pip install weave
 python3 -m court weave
 ```
 
-Slide URL: `https://wandb.ai/superheros/tracelaw`
+Weave: https://wandb.ai/iamadnan/tracelaw/weave · GPU notebook: https://molab.marimo.io/notebooks/nb_XpnzWXXyteA47H9NYunt5T
 
 ## Mac (M4) setup
 

@@ -60,36 +60,13 @@ def cmd_weave() -> int:
         print("camera offline: WANDB_API_KEY unset. Replaying fixtures.")
         return cmd_replay()
     try:
-        import weave  # type: ignore
+        import weave  # type: ignore  # noqa: F401
     except ImportError:
         print("camera offline: weave not installed. pip install weave")
         return cmd_replay()
+    from court.weave_loop import main as weave_main
 
-    name = f"{entity}/{project}" if entity else project
-    weave.init(name)
-
-    @weave.op
-    def load_ckpt(job_id: str) -> dict:
-        if job_id == "archive":
-            return {"param_copies": 1, "batch": 2048}
-        return {"param_copies": 2, "batch": 2048}
-
-    @weave.op
-    def diagnose(job_id: str, statutes: list[dict]) -> dict:
-        ckpt = load_ckpt(job_id)
-        admitted = {s["kind"] for s in statutes if s.get("status") == "admitted"}
-        if "free_ckpt" in admitted and ckpt["param_copies"] > 1:
-            return {"action": "free_duplicate", "alive": True, "batch": ckpt["batch"], "param_copies": 1}
-        if ckpt["param_copies"] > 1:
-            return {"action": "cut_batch", "alive": False, "batch": 1024, "param_copies": ckpt["param_copies"]}
-        return {"action": "noop", "alive": True, **ckpt}
-
-    gold = diagnose("archive", [])
-    fail = diagnose("night1", [])
-    after = diagnose("night2", [{"kind": "free_ckpt", "status": "admitted"}])
-    print(json.dumps({"archive": gold, "night1": fail, "night2": after, "project": name}, indent=2))
-    ok = gold["alive"] and not fail["alive"] and after["alive"] and after["batch"] == 2048
-    return 0 if ok else 1
+    return weave_main(entity, project)
 
 
 def main(argv: list[str]) -> int:
