@@ -68,7 +68,7 @@ export function NightOven() {
                 <p className="text-xs uppercase tracking-widest text-muted">TRACELAW café</p>
                 <h1 className="mt-1 font-display text-3xl">Bake the 2048</h1>
                 <p className="mt-3 text-sm text-muted">
-                  WASD walk. You take the order, bake, serve — Papa’s style. Space at each station. Jules only slams the extra book. File the camera rule, not ALWAYS BAKE SMALLER.
+                  The G1 robot runs the orders; its brain is a model on an RTX PRO 6000. When the oven jams, it slaps a sticky. You are the manager: WASD to the BINDER, Space to throw the sticky and file the camera rule. Only laws that spare last week’s perfect loaf get in.
                 </p>
                 <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
                   <Button size="lg" onClick={play}>
