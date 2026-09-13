@@ -3,7 +3,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows, Gltf, Html } from "@react-three/drei";
 import type { Group, MeshStandardMaterial, PointLight } from "three";
 import { CafeRoom } from "./cafe-room";
-import { H, W, tick, type Game, type Hold } from "./bakery";
+import { H, W, ST, tick, type Game, type Hold } from "./bakery";
 
 export function toWorld(x: number, y: number): [number, number, number] {
   return [(x / W) * 16 - 8, 0, (y / H) * 12 - 6];
@@ -32,16 +32,17 @@ export function BakeryScene({ game }: { game: { current: Game } }) {
   const bakery = useOptional("/models/bakery.glb");
   return (
     <>
-      <color attach="background" args={["#0d0b09"]} />
-      <fog attach="fog" args={["#0d0b09", 12, 28]} />
-      <hemisphereLight args={["#fff3bf", "#1a1008", 0.35]} />
-      <directionalLight position={[4, 8, 3]} intensity={0.45} castShadow shadow-mapSize={[1024, 1024]} />
+      <color attach="background" args={["#2a2018"]} />
+      <fog attach="fog" args={["#2a2018", 22, 40]} />
+      <ambientLight intensity={0.85} />
+      <hemisphereLight args={["#fff6e0", "#6b4a30", 0.9]} />
+      <directionalLight position={[6, 14, 8]} intensity={1.35} castShadow shadow-mapSize={[1024, 1024]} />
       <Rig game={game} />
       {bakery ? <Gltf src="/models/bakery.glb" /> : <CafeRoom />}
       <Oven game={game} />
-      <Station pos={toWorld(90, 110)} color="#1a4a6e" label="Binder" h={0.75} />
-      <Station pos={toWorld(200, 210)} color="#2b2118" label="Register" h={0.95} />
-      <Station pos={toWorld(860, 150)} color="#b9a48a" label="Tray" h={0.4} />
+      <Station pos={toWorld(ST.binder.x, ST.binder.y)} color="#1a4a6e" label="Binder" h={0.75} />
+      <Station pos={toWorld(ST.register.x, ST.register.y)} color="#2b2118" label="Register" h={0.95} />
+      <Station pos={toWorld(ST.tray.x, ST.tray.y)} color="#b9a48a" label="Tray" h={0.4} />
       <Robot who="you" pick={() => game.current.player} accent="#c45b4a" />
       <Robot who="jules" pick={() => game.current.baker} accent="#e8c36a" />
       <Robot who="cass" pick={() => game.current.cass} accent="#3f6b4e" />
@@ -58,10 +59,10 @@ function Rig({ game }: { game: { current: Game } }) {
   const { camera } = useThree();
   useFrame(() => {
     const [x, , z] = toWorld(game.current.player.x, game.current.player.y);
-    camera.position.x += (x + 1.2 - camera.position.x) * 0.07;
-    camera.position.y += (4.8 - camera.position.y) * 0.07;
-    camera.position.z += (z + 6.4 - camera.position.z) * 0.07;
-    camera.lookAt(x, 0.9, z - 0.4);
+    camera.position.x += (x * 0.2 - camera.position.x) * 0.08;
+    camera.position.y += (9.2 - camera.position.y) * 0.08;
+    camera.position.z += (z * 0.2 + 11.5 - camera.position.z) * 0.08;
+    camera.lookAt(x * 0.35, 0.2, z * 0.35);
   });
   return null;
 }
@@ -85,7 +86,7 @@ function Oven({ game }: { game: { current: Game } }) {
     if (fail.current) fail.current.visible = dead;
     if (muffin.current) muffin.current.visible = o.has === "raw" || o.has === "cooked" || o.has === "burnt";
   });
-  const [x, , z] = toWorld(720, 130);
+  const [x, , z] = toWorld(ST.oven.x, ST.oven.y);
   return (
     <group position={[x, 0, z]}>
       <mesh position={[0, 0.7, 0]} castShadow>
@@ -114,7 +115,7 @@ function ExtraBook({ game }: { game: { current: Game } }) {
   useFrame(() => {
     if (ref.current) ref.current.visible = game.current.oven.books === 2;
   });
-  const pos = toWorld(720, 130);
+  const pos = toWorld(ST.oven.x, ST.oven.y);
   return (
     <group ref={ref} position={[pos[0] + 0.7, 0.7, pos[2] + 0.2]} visible={false}>
       <Book />

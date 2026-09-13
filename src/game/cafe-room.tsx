@@ -5,21 +5,16 @@ export function CafeRoom() {
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[22, 16]} />
-        <meshStandardMaterial color="#3a2a1c" />
+        <meshStandardMaterial color="#d7b48a" />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 1]} receiveShadow>
-        <planeGeometry args={[8, 6]} />
-        <meshStandardMaterial color="#c4a574" />
-      </mesh>
-      <mesh position={[0, 3.2, 0]}>
-        <boxGeometry args={[22, 0.12, 16]} />
-        <meshStandardMaterial color="#1a1410" />
+        <planeGeometry args={[10, 8]} />
+        <meshStandardMaterial color="#e8d4b0" />
       </mesh>
 
-      <Wall pos={[0, 1.6, -7.8]} size={[22, 3.2, 0.28]} />
-      <Wall pos={[-10.9, 1.6, 0]} size={[0.28, 3.2, 16]} />
-      <Wall pos={[10.9, 1.6, 0]} size={[0.28, 3.2, 16]} />
-      <Wall pos={[4, 1.6, 7.8]} size={[14, 3.2, 0.28]} />
+      <Wall pos={[0, 1.8, -7.8]} size={[22, 3.6, 0.28]} />
+      <Wall pos={[-10.9, 1.8, 0]} size={[0.28, 3.6, 16]} />
+      <Wall pos={[10.9, 1.8, 0]} size={[0.28, 3.6, 16]} />
 
       <Window pos={[-4.5, 1.7, -7.64]} />
       <Window pos={[2.2, 1.7, -7.64]} />

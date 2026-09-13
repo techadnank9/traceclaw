@@ -24,6 +24,7 @@ async function boot() {
       oven: mk("cafe.oven_bake"),
       court: mk("cafe.court_verdict"),
       night_over: mk("cafe.night_over"),
+      robot: mk("cafe.gpu_robot"),
     },
   };
 }

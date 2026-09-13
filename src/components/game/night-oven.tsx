@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import {
   bindControls,
   createGame,
+  currentStep,
   fileStickyAnyway,
   interact,
   startShift,
@@ -43,12 +44,12 @@ export function NightOven() {
           </p>
         </div>
 
-        <div className="relative min-h-[70dvh] flex-1 overflow-hidden rounded-xl border border-border bg-fg shadow-sheet">
+        <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-border bg-[#2a2018] shadow-sheet">
           <Canvas
-            className="h-[70dvh] min-h-[420px] touch-none"
+            className="absolute inset-0 touch-none"
             shadows
-            dpr={[1, 2]}
-            camera={{ position: [1.2, 4.8, 6.4], fov: 50, near: 0.1, far: 80 }}
+            dpr={[1, 1.5]}
+            camera={{ position: [0, 9.2, 11.5], fov: 42, near: 0.1, far: 80 }}
             onPointerDown={() => interact(gameRef.current)}
           >
             <Loop game={gameRef} onUi={(g) => setUi(snap(g))} />
@@ -67,8 +68,7 @@ export function NightOven() {
                 <p className="text-xs uppercase tracking-widest text-muted">TRACELAW café</p>
                 <h1 className="mt-1 font-display text-3xl">Bake the 2048</h1>
                 <p className="mt-3 text-sm text-muted">
-                  WASD walk. Space or click to pick up / put down. Jules will load an extra recipe book. File the camera
-                  rule, not ALWAYS BAKE SMALLER.
+                  WASD walk. You take the order, bake, serve — Papa’s style. Space at each station. Jules only slams the extra book. File the camera rule, not ALWAYS BAKE SMALLER.
                 </p>
                 <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
                   <Button size="lg" onClick={play}>
@@ -82,14 +82,32 @@ export function NightOven() {
             </div>
           ) : null}
 
+          {ui.phase === "play" || ui.phase === "court" ? (
+            <div className="pointer-events-none absolute left-3 top-3 max-w-sm rounded-md bg-elevated/95 p-3 shadow-sheet">
+              <p className="text-[10px] uppercase tracking-widest text-muted">Ticket · 2048 croissant</p>
+              <ol className="mt-1 space-y-0.5 font-mono text-xs">
+                {["Register — take order", "Tray — raw muffin", "Oven — bake", "Register — serve"].map((line, i) => (
+                  <li key={line} className={ui.step.n === i + 1 || (ui.step.n === 5 && i === 3) || (ui.step.n === 4 && i === 2) ? "font-semibold text-fg" : "text-muted"}>
+                    {i + 1}. {line}
+                  </li>
+                ))}
+              </ol>
+              <p className="mt-2 text-sm">{ui.step.label}</p>
+            </div>
+          ) : null}
+
           {ui.phase === "court" ? (
-            <div className="absolute bottom-3 left-3 right-3 flex flex-wrap gap-2">
-              <Button size="sm" onClick={() => interact(gameRef.current)}>
-                Throw sticky / file rule
-              </Button>
-              <Button size="sm" variant="danger" onClick={() => fileStickyAnyway(gameRef.current)}>
-                File sticky anyway
-              </Button>
+            <div className="absolute bottom-3 left-3 right-3 rounded-md bg-elevated/95 p-3 shadow-sheet">
+              <p className="font-display text-lg text-danger">FAIL — extra book</p>
+              <p className="text-sm text-muted">Walk to BINDER. Space throws Jules’s sticky, Space again files the camera rule.</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button size="sm" onClick={() => interact(gameRef.current)}>
+                  Throw sticky / file rule
+                </Button>
+                <Button size="sm" variant="danger" onClick={() => fileStickyAnyway(gameRef.current)}>
+                  File sticky anyway
+                </Button>
+              </div>
             </div>
           ) : null}
 
@@ -125,6 +143,7 @@ export function NightOven() {
         </div>
 
         <p className="mt-2 text-center text-sm text-muted">{ui.hint}</p>
+        <p className="mt-1 text-center font-mono text-xs text-muted">GPU robot · {ui.gpu}</p>
 
         <div className="mt-2 flex justify-center gap-6 sm:hidden">
           <div className="grid grid-cols-3 gap-1">
@@ -153,6 +172,9 @@ function snap(g: Game) {
     timeLeft: g.timeLeft,
     hint: g.hint,
     evals: g.evals,
+    gpu: g.gpu.pending ? "thinking" : g.gpu.last ? (g.gpu.last.camera === "gpu" ? `${g.gpu.last.struck ? `${g.gpu.last.wanted ?? "?"} ✂` : g.gpu.last.action} · ${g.gpu.last.ms ?? "?"} ms · ${(g.gpu.last.device ?? "GPU").replace(" Blackwell Server Edition", "")}` : "offline") : "idle",
+    step: currentStep(g),
+    ticket: g.ticket,
   };
 }
 

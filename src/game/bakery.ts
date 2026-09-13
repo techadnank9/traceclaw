@@ -10,6 +10,7 @@ import {
 } from "@/lib/tracelaw/engine";
 import type { EvalReport, Law } from "@/lib/tracelaw/types";
 import { camera } from "@/lib/tracelaw/camera";
+import { askGpu, type GpuPlan } from "@/lib/tracelaw/gpu";
 
 export const W = 960;
 export const H = 540;
@@ -39,13 +40,15 @@ export type Game = {
   combo: number;
   player: Body & { hold: Hold };
   cass: Body;
-  baker: Body & { hold: Hold; ai: number };
+  baker: Body & { hold: Hold; ai: number; task: "idle" | "pull" };
+  gpu: { pending: boolean; last: GpuPlan | null; seq: number };
   customers: Customer[];
   oven: Oven;
   laws: Law[];
   evals: EvalReport[];
   hint: string;
   popup: { text: string; life: number };
+  ticket: boolean;
   keys: Set<string>;
   inject: Set<string> | null;
   interactLatch: boolean;
@@ -54,10 +57,10 @@ export type Game = {
 };
 
 export const ST = {
-  tray: { x: 860, y: 150, r: 52, label: "tray" },
-  oven: { x: 720, y: 130, r: 54, label: "oven" },
-  register: { x: 200, y: 210, r: 50, label: "register" },
-  binder: { x: 90, y: 110, r: 48, label: "binder" },
+  tray: { x: 700, y: 140, r: 56, label: "tray" },
+  oven: { x: 520, y: 130, r: 58, label: "oven" },
+  register: { x: 220, y: 200, r: 56, label: "register" },
+  binder: { x: 80, y: 120, r: 50, label: "binder" },
 };
 
 function near(a: Body, s: { x: number; y: number; r: number }) {
@@ -79,15 +82,17 @@ export function createGame(): Game {
     served: 0,
     walked: 0,
     combo: 0,
-    player: { ...body(480, 420), hold: "empty" },
-    cass: body(200, 188),
-    baker: { ...body(780, 200), hold: "empty", ai: 0 },
+    player: { ...body(400, 280), hold: "empty" },
+    cass: body(220, 168),
+    baker: { ...body(560, 180), hold: "empty", ai: 0, task: "idle" },
+    gpu: { pending: false, last: null, seq: 0 },
     customers: [],
     oven: { has: "empty", t: 0, jam: false, books: 1 },
     laws: [],
     evals: [],
-    hint: "WASD move · Space pick up / put down",
+    hint: "WASD move · Space to take order / pick up / put down",
     popup: { text: "", life: 0 },
+    ticket: false,
     keys: new Set(),
     inject: null,
     interactLatch: false,
@@ -120,11 +125,14 @@ export function startShift(g: Game) {
   g.served = 0;
   g.walked = 0;
   g.combo = 0;
-  g.player = { ...body(480, 420), hold: "empty" };
-  g.baker = { ...body(780, 200), hold: "empty", ai: 0 };
+  g.player = { ...body(400, 280), hold: "empty" };
+  g.baker = { ...body(560, 180), hold: "empty", ai: 0, task: "idle" };
+  g.cass = body(220, 168);
+  g.gpu = { pending: false, last: null, seq: 0 };
   g.customers = [];
   g.oven = { has: "empty", t: 0, jam: false, books: 1 };
-  g.hint = "Grab a raw muffin from the tray. Oven is hungry.";
+  g.ticket = false;
+  g.hint = "Customer at the REGISTER. Walk there, press Space — take the 2048 ticket.";
   g.firstJam = true;
   g.goldHit = false;
   spawnCustomer(g);
@@ -135,8 +143,8 @@ function spawnCustomer(g: Game) {
   const slot = [0, 1, 2].find((s) => !used.has(s));
   if (slot == null) return;
   g.customers.push({
-    ...body(240 + slot * 120, 560),
-    wait: 18,
+    ...body(220 + slot * 70, 520),
+    wait: 32,
     slot,
     alive: true,
   });
@@ -167,21 +175,44 @@ function moveToward(b: Body, x: number, y: number, speed: number, dt: number) {
 function loadOven(g: Game, from: Hold) {
   if (g.oven.has !== "empty") return false;
   if (from !== "raw") return false;
-  const jam = g.firstJam || (!statuteOn(g) && Math.random() < 0.4);
+  const jam = g.firstJam || Math.random() < 0.4;
   g.firstJam = false;
-  g.oven = { has: "raw", t: jam && !statuteOn(g) ? 1.8 : 2.6, jam, books: jam ? 2 : 1 };
-  g.hint = jam ? "Two recipe books on the oven. That’s the extra copy." : "Baking.";
+  g.oven = { has: "raw", t: jam ? 3.4 : 2.6, jam, books: jam ? 2 : 1 };
+  g.hint = jam ? "Jules slammed an extra recipe book. GPU robot is reading the ticket…" : "Baking — wait for the ding.";
+  if (jam) askRobot(g);
   return true;
+}
+
+/** Ticket → molab GPU → court check → Jules acts. Fails closed: offline GPU changes nothing. */
+function askRobot(g: Game) {
+  const seq = ++g.gpu.seq;
+  g.gpu.pending = true;
+  const laws = g.laws.filter((l) => l.status === "admitted").map((l) => l.kind);
+  void askGpu({ job_id: `ticket-${seq}`, batch: 2048, param_copies: 2 }, laws).then((plan) => {
+    if (seq !== g.gpu.seq) return;
+    g.gpu.pending = false;
+    g.gpu.last = plan;
+    camera("robot", { seq, laws, ...plan });
+    if (plan.camera !== "gpu") return;
+    if (plan.action === "free_ckpt" && !plan.struck && g.oven.has === "raw" && g.oven.books === 2) {
+      g.baker.task = "pull";
+      g.hint = `GPU robot: free_ckpt in ${plan.ms ?? "?"} ms. Jules is pulling the extra book.`;
+    } else if (plan.struck) {
+      g.hint = `GPU robot wanted ${plan.wanted ?? plan.action}. Court struck it: not in the binder.`;
+    } else {
+      g.hint = `GPU robot: ${plan.action}. Two books stay on the oven.`;
+    }
+  });
 }
 
 function finishOven(g: Game) {
   const kind = g.oven.jam ? "jam" : "clean";
   const result = serveTicket(kind, g.laws);
-  camera("oven", { ticket: kind, books: g.oven.books, batch: 2048, passed: result.passed, why: result.why, laws: g.laws.map((l) => `${l.kind}:${l.status}`) });
+  camera("oven", { ticket: kind, books: g.oven.books, batch: 2048, passed: result.passed, why: result.why, gpu: g.gpu.last?.camera === "gpu" ? g.gpu.last.action : "offline", laws: g.laws.map((l) => `${l.kind}:${l.status}`) });
   if (result.passed) {
     g.oven.has = "cooked";
     g.oven.books = 1;
-    g.hint = "Muffin done. Carry it to a customer or the register.";
+    g.hint = "Ding! Space at the OVEN, then carry it to the REGISTER.";
   } else {
     g.oven.has = "burnt";
     g.oven.books = result.books;
@@ -189,7 +220,7 @@ function finishOven(g: Game) {
     g.combo = 0;
     if (!statuteOn(g) && !stickyOn(g)) {
       g.phase = "court";
-      g.hint = "FAIL. Jules wrote ALWAYS BAKE SMALLER. Walk to the binder.";
+      g.hint = "FAIL. Jules wrote ALWAYS BAKE SMALLER. Walk to the BINDER, press Space.";
     } else {
       g.hint = result.why;
     }
@@ -197,9 +228,13 @@ function finishOven(g: Game) {
 }
 
 function serve(g: Game) {
-  const waiting = g.customers.find((c) => c.alive && c.y < 430);
+  if (!g.ticket) {
+    g.hint = "Take the order at the REGISTER first (Space).";
+    return;
+  }
+  const waiting = g.customers.find((c) => c.alive);
   if (!waiting) {
-    g.hint = "No one at the counter yet.";
+    g.hint = "No ticket. Take an order at the REGISTER.";
     return;
   }
   const tip = 10 + g.combo * 2;
@@ -208,8 +243,9 @@ function serve(g: Game) {
   g.combo += 1;
   waiting.alive = false;
   g.player.hold = "empty";
+  g.ticket = false;
   pop(g, `+$${tip}`);
-  g.hint = g.combo > 1 ? `${g.combo} streak` : "Served. Next muffin.";
+  g.hint = "Served. Next customer — REGISTER, then TRAY, then OVEN.";
 }
 
 export function interact(g: Game) {
@@ -247,9 +283,24 @@ export function interact(g: Game) {
 
   if (g.phase !== "play") return;
 
+  if (near(p, ST.register) && p.hold === "empty" && !g.ticket) {
+    const waiting = g.customers.find((c) => c.alive);
+    if (!waiting) {
+      g.hint = "No one in line yet.";
+      return;
+    }
+    g.ticket = true;
+    g.hint = "Ticket: 2048 croissant muffin. TRAY (raw) → OVEN → REGISTER.";
+    pop(g, "2048 ticket");
+    return;
+  }
   if (near(p, ST.tray) && p.hold === "empty") {
+    if (!g.ticket) {
+      g.hint = "Take the order at the REGISTER first.";
+      return;
+    }
     p.hold = "raw";
-    g.hint = "Raw muffin. Walk to the oven.";
+    g.hint = "Raw muffin. Walk to the OVEN, Space to load.";
     return;
   }
   if (near(p, ST.oven) && p.hold === "raw") {
@@ -261,16 +312,16 @@ export function interact(g: Game) {
     p.hold = g.oven.has;
     g.oven.has = "empty";
     g.oven.books = 1;
-    g.hint = p.hold === "cooked" ? "Carry it to the counter." : "Burnt. Take it to the binder.";
+    g.hint = p.hold === "cooked" ? "Carry it to the REGISTER. Space to serve." : "Burnt. Walk to the BINDER.";
     return;
   }
-  if ((near(p, ST.register) || g.customers.some((c) => c.alive && Math.hypot(c.x - p.x, c.y - p.y) < 56)) && p.hold === "cooked") {
+  if (near(p, ST.register) && p.hold === "cooked") {
     serve(g);
     return;
   }
   if (near(p, ST.binder) && p.hold === "burnt") {
     p.hold = "empty";
-    g.hint = "Tossed. Don’t file Jules’s sticky.";
+    g.hint = "Tossed. File the camera rule, not Jules’s sticky.";
   }
 }
 
@@ -302,7 +353,9 @@ export function tick(g: Game, dt: number) {
       camera("night_over", { cash: g.cash, served: g.served, walked: g.walked, evals: g.evals.map((e) => `${e.label} ${e.passed}/${e.total}`), laws: g.laws.map((l) => `${l.kind}:${l.status}`) });
       return;
     }
-    if (g.customers.filter((c) => c.alive).length < 3 && Math.random() < dt * 0.35) spawnCustomer(g);
+    const waiting = g.customers.filter((c) => c.alive).length;
+    if (waiting === 0) spawnCustomer(g);
+    else if (waiting < 2 && !g.ticket && Math.random() < dt * 0.12) spawnCustomer(g);
   }
 
   const p = g.player;
@@ -344,46 +397,64 @@ function bakerAi(g: Game, dt: number) {
   const b = g.baker;
   b.bob += dt * 6;
   if (g.phase !== "play") {
-    moveToward(b, 780, 200, 70, dt);
+    moveToward(b, 560, 180, 70, dt);
     return;
   }
   b.ai += dt;
-  if (b.hold === "empty" && g.oven.has === "empty") {
-    if (moveToward(b, ST.tray.x - 20, ST.tray.y + 10, 90, dt)) b.hold = "raw";
-  } else if (b.hold === "raw") {
-    if (moveToward(b, ST.oven.x + 30, ST.oven.y + 40, 90, dt)) {
-      if (loadOven(g, "raw")) b.hold = "empty";
+  if (b.task === "pull") {
+    if (moveToward(b, ST.oven.x - 30, ST.oven.y + 40, 120, dt)) {
+      b.task = "idle";
+      if (g.oven.has === "raw" && g.oven.books === 2) {
+        g.oven.books = 1;
+        g.oven.jam = false;
+        pop(g, "Book pulled");
+        g.hint = "Extra book back on the shelf. Batch 2048 held.";
+      }
     }
-  } else {
-    moveToward(b, 760, 210, 60, dt);
+    return;
   }
+  const jam = g.oven.books === 2;
+  moveToward(b, ST.oven.x + (jam ? 24 : 48), ST.oven.y + 42, jam ? 110 : 40, dt);
 }
 
 function cassAi(g: Game, dt: number) {
   g.cass.bob += dt * 5;
-  const sway = Math.sin(g.t * 2) * 8;
-  moveToward(g.cass, 200 + sway, 188, 40, dt);
+  const sway = Math.sin(g.t * 2) * 6;
+  moveToward(g.cass, ST.register.x + sway, ST.register.y - 28, 40, dt);
 }
 
 function customersAi(g: Game, dt: number) {
   for (const c of g.customers) {
     if (!c.alive) continue;
-    const tx = 240 + c.slot * 120;
-    const ty = 355;
-    moveToward(c, tx, ty, 70, dt);
+    const tx = ST.register.x + 18 + c.slot * 54;
+    const ty = ST.register.y + 90;
+    moveToward(c, tx, ty, 80, dt);
     c.bob += dt * 5;
-    if (g.phase === "play" && Math.hypot(c.x - tx, c.y - ty) < 10) {
+    if (g.phase === "play" && Math.hypot(c.x - tx, c.y - ty) < 12) {
       c.wait -= dt;
       if (c.wait <= 0) {
         c.alive = false;
         g.walked += 1;
         g.combo = 0;
+        g.ticket = false;
         g.cash = Math.max(0, g.cash - 4);
         pop(g, "Walkout");
       }
     }
   }
   g.customers = g.customers.filter((c) => c.alive || c.y < 600);
+}
+
+export function currentStep(g: Game): { n: number; label: string; station: keyof typeof ST | "wait" } {
+  if (g.phase === "court") return { n: 0, label: "BINDER — throw sticky, file extra-book rule", station: "binder" };
+  if (g.phase === "over") return { n: 0, label: "Night over", station: "wait" };
+  if (!g.ticket) return { n: 1, label: "REGISTER — Space, take the 2048 ticket", station: "register" };
+  if (g.player.hold === "raw") return { n: 3, label: "OVEN — Space, load the muffin", station: "oven" };
+  if (g.oven.has === "raw") return { n: 3, label: "Wait for the ding", station: "oven" };
+  if (g.oven.has === "cooked" && g.player.hold === "empty") return { n: 4, label: "OVEN — Space, take muffin out", station: "oven" };
+  if (g.player.hold === "cooked") return { n: 5, label: "REGISTER — Space, serve", station: "register" };
+  if (g.player.hold === "burnt") return { n: 0, label: "BINDER — dump the burnt muffin", station: "binder" };
+  return { n: 2, label: "TRAY — Space, pick up raw muffin", station: "tray" };
 }
 
 export function bindControls(g: Game) {
