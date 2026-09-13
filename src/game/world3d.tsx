@@ -175,9 +175,9 @@ function Robot({
     }
     ref.current.visible = true;
     const [x, , z] = toWorld(b.x, b.y);
-    // Bob only while actually walking; standing still must not shake.
+    // No hop: the G1 glides. (Placeholder bodies bob a little while walking.)
     const moved = Math.hypot(x - last.current.x, z - last.current.z) > 0.002;
-    last.current.amp += ((moved ? 0.05 : 0) - last.current.amp) * 0.2;
+    last.current.amp += ((moved && !glb ? 0.05 : 0) - last.current.amp) * 0.2;
     last.current.x = x;
     last.current.z = z;
     ref.current.position.set(x, last.current.amp * Math.abs(Math.sin(b.bob * 8)), z);
