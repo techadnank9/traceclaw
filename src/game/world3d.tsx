@@ -355,11 +355,13 @@ function G1Body({ url, motion, drive, onFail }: { url: string; motion: { current
       }
     });
   });
+  const loaded = useRef(false);
   useEffect(() => {
     let live = true;
     loadG1(url)
       .then((scene) => {
         if (!live) return;
+        loaded.current = true;
         const clone = scene.clone(true);
         const map = new Map<number, Object3D[]>();
         clone.traverse((o) => {
@@ -380,8 +382,8 @@ function G1Body({ url, motion, drive, onFail }: { url: string; motion: { current
         if (live) onFail();
       });
     const timer = setTimeout(() => {
-      if (live && !obj) onFail();
-    }, 6000);
+      if (live && !loaded.current) onFail();
+    }, 8000);
     return () => {
       live = false;
       clearTimeout(timer);
