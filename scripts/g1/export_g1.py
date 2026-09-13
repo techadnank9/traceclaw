@@ -29,7 +29,7 @@ z_to_y = np.array([[1, 0, 0], [0, 0, 1], [0, -1, 0]], dtype=float)
 face_z = np.array([[0, 0, 1], [0, 1, 0], [-1, 0, 0]], dtype=float)  # Ry(-90°): +X → +Z
 R = face_z @ z_to_y
 
-parts = []
+parts = []  # (verts in BODY frame, faces, rgba, body_id)
 for g in range(model.ngeom):
     if model.geom_type[g] != mujoco.mjtGeom.mjGEOM_MESH:
         continue
@@ -43,18 +43,30 @@ for g in range(model.ngeom):
     fa, fn = model.mesh_faceadr[m], model.mesh_facenum[m]
     verts = model.mesh_vert[va : va + vn].astype(float)
     faces = model.mesh_face[fa : fa + fn].astype(np.int64)
-    xmat = data.geom_xmat[g].reshape(3, 3)
-    world = verts @ xmat.T + data.geom_xpos[g]
-    parts.append((world @ R.T, faces, rgba))
+    q = np.zeros(9)
+    mujoco.mju_quat2Mat(q, model.geom_quat[g])
+    local = verts @ q.reshape(3, 3).T + model.geom_pos[g]
+    parts.append((local, faces, rgba, int(model.geom_bodyid[g])))
 
-verts_all = np.concatenate([p[0] for p in parts])
-floor = verts_all[:, 1].min()
+def body_T(b: int) -> np.ndarray:
+    """Body world pose at the keyframe, in glTF (Y-up, +Z facing) coordinates."""
+    q = np.zeros(9)
+    mujoco.mju_quat2Mat(q, data.xquat[b])
+    T = np.eye(4)
+    T[:3, :3] = R @ q.reshape(3, 3)
+    T[:3, 3] = R @ data.xpos[b]
+    return T
+
+world_pts = np.concatenate([(p[0] @ body_T(p[3])[:3, :3].T + body_T(p[3])[:3, 3]) for p in parts])
+floor = world_pts[:, 1].min()
+verts_all = world_pts
+
 
 def build(tint: np.ndarray, strength: float) -> trimesh.Scene:
     scene = trimesh.Scene()
     total = sum(len(p[1]) for p in parts)
-    for i, (v, f, rgba) in enumerate(parts):
-        mesh = trimesh.Trimesh(vertices=v - [0, floor, 0], faces=f, process=True)
+    for i, (v, f, rgba, b) in enumerate(parts):
+        mesh = trimesh.Trimesh(vertices=v, faces=f, process=True)
         share = max(64, int(target_faces * len(f) / total))
         if len(mesh.faces) > share:
             try:
@@ -71,7 +83,10 @@ def build(tint: np.ndarray, strength: float) -> trimesh.Scene:
             doubleSided=False,
         )
         mesh.visual = trimesh.visual.TextureVisuals(material=mat)
-        scene.add_geometry(mesh, node_name=f"part_{i}")
+        T = body_T(b)
+        T[1, 3] -= floor
+        # Node name carries the MuJoCo body id so the game can drive it from a live sim.
+        scene.add_geometry(mesh, node_name=f"body{b}_{i}", geom_name=f"g{i}", transform=T)
     return scene
 
 variants = {
