@@ -164,7 +164,7 @@ function Robot({
   const last = useRef<{ x: number; z: number; amp: number }>({ x: 0, z: 0, amp: 0 });
   // Unitree G1 glTFs (scripts/g1/export_g1.py) are opt-in via ?g1=1 until the
   // embedded-WebGL path is proven; the lit placeholder bodies are the default.
-  const url = who === "cust" || !wantG1() ? "" : `/models/${who}.glb`;
+  const url = wantG1() ? `/models/${who}.glb` : "";
   const glb = useOptional(url);
   useFrame(() => {
     const b = pick();

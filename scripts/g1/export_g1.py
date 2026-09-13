@@ -78,6 +78,7 @@ variants = {
     "you": (np.array([0.45, 0.62, 0.85]), 0.35),
     "jules": (np.array([0.95, 0.45, 0.25]), 0.45),
     "cass": (np.array([0.35, 0.75, 0.55]), 0.35),
+    "cust": (np.array([0.55, 0.52, 0.48]), 0.3),
 }
 out_dir.mkdir(parents=True, exist_ok=True)
 for name, (tint, strength) in variants.items():
