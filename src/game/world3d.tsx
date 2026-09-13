@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows, Gltf, Html } from "@react-three/drei";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import type { Object3D } from "three";
+import { Quaternion, Vector3, type Object3D } from "three";
+import rig from "../../public/models/g1-rig.json";
 import type { Group, MeshStandardMaterial, PointLight } from "three";
 import { CafeRoom } from "./cafe-room";
 import { H, W, ST, tick, type Game, type Hold } from "./bakery";
@@ -162,6 +163,7 @@ function Robot({
 }) {
   const ref = useRef<Group>(null);
   const last = useRef<{ x: number; z: number; amp: number }>({ x: 0, z: 0, amp: 0 });
+  const motion = useRef(false);
   // Unitree G1 glTFs (scripts/g1/export_g1.py) are opt-in via ?g1=1 until the
   // embedded-WebGL path is proven; the lit placeholder bodies are the default.
   const url = wantG1() ? `/models/${who}.glb` : "";
@@ -177,6 +179,7 @@ function Robot({
     const [x, , z] = toWorld(b.x, b.y);
     // No hop: the G1 glides. (Placeholder bodies bob a little while walking.)
     const moved = Math.hypot(x - last.current.x, z - last.current.z) > 0.002;
+    motion.current = moved;
     last.current.amp += ((moved && !glb ? 0.05 : 0) - last.current.amp) * 0.2;
     last.current.x = x;
     last.current.z = z;
@@ -186,7 +189,7 @@ function Robot({
   const label = who === "you" ? "You" : who === "jules" ? "Jules" : who === "cass" ? "Cass" : "";
   return (
     <group ref={ref}>
-      {glb ? <G1Body url={url} /> : <RobotBody accent={accent} intern={who === "jules"} />}
+      {glb ? <G1Body url={url} motion={motion} drive={who === "jules"} /> : <RobotBody accent={accent} intern={who === "jules"} />}
       <HandMuffin pick={pick} />
       {label ? (
         <Html center position={[0, 1.7, 0]}>
@@ -300,20 +303,69 @@ function loadG1(url: string): Promise<Object3D> {
  * Unitree G1 body without Suspense: drei's <Gltf> suspends the whole scene and,
  * with several robots, remount-storms until WebGL loses its context.
  */
-function G1Body({ url }: { url: string }) {
+type Leg = { hip: number[]; knee: number[]; thigh: number[]; shank: number[] };
+const LEGS: Leg[] = [rig.left as Leg, rig.right as Leg];
+const X_AXIS = new Vector3(1, 0, 0);
+
+/** Rotate a rest-pose node (vertices baked in world frame) about a pivot. */
+function aboutPivot(pivot: Vector3, q: Quaternion, prevPos: Vector3, prevQ: Quaternion): { p: Vector3; q: Quaternion } {
+  // node' = R_pivot(q) ∘ prev  →  pos = q·(prevPos − pivot) + pivot, rot = q·prevQ
+  return { p: prevPos.clone().sub(pivot).applyQuaternion(q).add(pivot), q: q.clone().multiply(prevQ) };
+}
+
+function G1Body({ url, motion, drive }: { url: string; motion: { current: boolean }; drive: boolean }) {
   const [obj, setObj] = useState<Object3D | null>(null);
+  const bodies = useRef<Map<number, Object3D[]>>(new Map());
+  const phase = useRef(0);
+  const amp = useRef(0);
+
+  // Procedural gait on the per-body glTF: hips swing about the hip pivot,
+  // shanks flex about the knee pivot, alternating legs while the body moves.
+  useFrame((_, dt) => {
+    if (!drive || bodies.current.size === 0) return;
+    const moving = motion.current;
+    amp.current += ((moving ? 1 : 0) - amp.current) * Math.min(1, dt * 8);
+    if (moving) phase.current += dt * 9;
+    const a = amp.current;
+    LEGS.forEach((leg, i) => {
+      const ph = phase.current + (i === 0 ? 0 : Math.PI);
+      const hipAngle = 0.55 * a * Math.sin(ph);
+      const kneeAngle = -0.9 * a * Math.max(0, Math.sin(ph + 0.6));
+      const hip = new Vector3(leg.hip[0], leg.hip[1], leg.hip[2]);
+      const knee = new Vector3(leg.knee[0], leg.knee[1], leg.knee[2]);
+      const qHip = new Quaternion().setFromAxisAngle(X_AXIS, hipAngle);
+      const qKnee = new Quaternion().setFromAxisAngle(X_AXIS, kneeAngle);
+      const shank = new Set(leg.shank);
+      for (const b of leg.thigh) {
+        let t = { p: new Vector3(0, 0, 0), q: new Quaternion() };
+        if (shank.has(b)) t = aboutPivot(knee, qKnee, t.p, t.q);
+        t = aboutPivot(hip, qHip, t.p, t.q);
+        for (const n of bodies.current.get(b) ?? []) {
+          n.position.copy(t.p);
+          n.quaternion.copy(t.q);
+        }
+      }
+    });
+  });
   useEffect(() => {
     let live = true;
     loadG1(url)
       .then((scene) => {
         if (!live) return;
         const clone = scene.clone(true);
+        const map = new Map<number, Object3D[]>();
         clone.traverse((o) => {
           if ((o as { isMesh?: boolean }).isMesh) {
             o.castShadow = true;
             o.receiveShadow = false;
           }
+          const m = /^body(\d+)_/.exec(o.name);
+          if (m) {
+            const b = Number(m[1]);
+            map.set(b, [...(map.get(b) ?? []), o]);
+          }
         });
+        bodies.current = map;
         setObj(clone);
       })
       .catch(() => {
